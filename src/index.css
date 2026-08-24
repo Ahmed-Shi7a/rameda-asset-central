@@ -1,0 +1,2 @@
+
+#lovable-badge, [class*='lovable'], [id*='lovable'], a[href*='lovable.dev'] { display: none !important; opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
