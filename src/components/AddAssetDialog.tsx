@@ -1,16 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import {
   Laptop,
   Monitor,
   Printer,
-  Scan,
-  Server,
   Tablet,
-  Network,
   PackageCheck,
   ChevronLeft,
   ArrowRight,
+  UploadCloud,
+  CheckCircle2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,16 +33,56 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { ASSET_STATUSES, LOCATIONS, type Asset, type AssetStatus } from "@/lib/types";
 
+// بطاقات الأجهزة المعتمدة مع هوية بصرية مخصصة لكل نوع
 export const APP_DEVICE_TYPES = [
-  { id: "Laptop", label: "Laptop", icon: Laptop, desc: "Notebooks & Ultrabooks" },
-  { id: "Desktop", label: "Desktop", icon: Monitor, desc: "PC Towers & All-in-Ones" },
-  { id: "Tablet", label: "Tablet", icon: Tablet, desc: "iPads & Tablets" },
-  { id: "Printer", label: "Printer", icon: Printer, desc: "Laser, Inkjet & Multi" },
-  { id: "Scanner", label: "Scanner", icon: Scan, desc: "Flatbed & Feeder" },
-  { id: "Network Device", label: "Network Device", icon: Network, desc: "Switches, Routers & APs" },
-  { id: "Server", label: "Server", icon: Server, desc: "Rack & Tower Servers" },
-  { id: "Monitor", label: "Monitor", icon: Monitor, desc: "Screens & Displays" },
-  { id: "Other", label: "Other", icon: PackageCheck, desc: "Accessories & Peripherals" },
+  { 
+    id: "Laptop", 
+    label: "Laptop", 
+    icon: Laptop, 
+    desc: "Notebooks & Ultrabooks",
+    iconTheme: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20",
+    badge: "Portable",
+  },
+  { 
+    id: "Desktop", 
+    label: "Desktop", 
+    icon: Monitor, 
+    desc: "PC Towers & All-in-Ones",
+    iconTheme: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    badge: "Workstation",
+  },
+  { 
+    id: "Tablet", 
+    label: "Tablet", 
+    icon: Tablet, 
+    desc: "iPads & Android Tablets",
+    iconTheme: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
+    badge: "Mobile",
+  },
+  { 
+    id: "Printer", 
+    label: "Printer", 
+    icon: Printer, 
+    desc: "Laser, Inkjet & Multi",
+    iconTheme: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+    badge: "Peripheral",
+  },
+  { 
+    id: "Monitor", 
+    label: "Monitor", 
+    icon: Monitor, 
+    desc: "Screens & Displays",
+    iconTheme: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
+    badge: "Display",
+  },
+  { 
+    id: "Other", 
+    label: "Other", 
+    icon: PackageCheck, 
+    desc: "Accessories & Peripherals",
+    iconTheme: "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20",
+    badge: "General",
+  },
 ] as const;
 
 const WARRANTY_PERIODS = ["1 Year", "2 Years", "3 Years", "5 Years", "No Warranty"] as const;
@@ -56,6 +95,8 @@ interface AddAssetDialogProps {
 }
 
 export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAssetDialogProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedType, setSelectedType] = useState<string>("Laptop");
 
@@ -63,15 +104,18 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
   const [serialNumber, setSerialNumber] = useState("");
-  const [status, setStatus] = useState<AssetStatus>("Active");
+  const [status, setStatus] = useState<AssetStatus>("Stock - New");
   const [location, setLocation] = useState<string>(LOCATIONS[0]);
+  
   const [holderName, setHolderName] = useState("");
   const [holderEmployeeId, setHolderEmployeeId] = useState("");
+  
   const [supplier, setSupplier] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [manufacturingDate, setManufacturingDate] = useState("");
   const [warranty, setWarranty] = useState("1 Year");
 
+  // Specs States
   const [processor, setProcessor] = useState("");
   const [ram, setRam] = useState("");
   const [hardDiskType, setHardDiskType] = useState("SSD");
@@ -79,34 +123,22 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
   const [gpu, setGpu] = useState("");
   const [imei, setImei] = useState("");
   const [screenSize, setScreenSize] = useState("");
-  const [connectivity, setConnectivity] = useState("Wi-Fi");
   const [printerType, setPrinterType] = useState("Laser");
   const [printOutput, setPrintOutput] = useState("Monochrome");
   const [cartridgeModel, setCartridgeModel] = useState("");
-  const [scanResolution, setScanResolution] = useState("");
-  const [scannerType, setScannerType] = useState("Flatbed");
-  const [interfaceType, setInterfaceType] = useState("USB");
-  const [networkCategory, setNetworkCategory] = useState("Switch");
-  const [portCount, setPortCount] = useState("24 Ports");
-  const [managementType, setManagementType] = useState("Managed");
-  const [ipMacAddress, setIpMacAddress] = useState("");
-  const [raidConfig, setRaidConfig] = useState("RAID 1");
-  const [formFactor, setFormFactor] = useState("Rack");
-  const [operatingSystem, setOperatingSystem] = useState("");
-  const [staticIp, setStaticIp] = useState("");
   const [resolution, setResolution] = useState("1080p");
-  const [panelType, setPanelType] = useState("IPS");
-  const [displayPorts, setDisplayPorts] = useState("");
   const [notes, setNotes] = useState("");
+
+  const showEmployeeFields = status !== "Stock - New";
 
   const resetForm = () => {
     setStep(1);
     setSelectedType("Laptop");
-    setName("");
+    setName("Laptop");
     setBrand("");
     setModel("");
     setSerialNumber("");
-    setStatus("Active");
+    setStatus("Stock - New");
     setLocation(LOCATIONS[0]);
     setHolderName("");
     setHolderEmployeeId("");
@@ -121,24 +153,10 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
     setGpu("");
     setImei("");
     setScreenSize("");
-    setConnectivity("Wi-Fi");
     setPrinterType("Laser");
     setPrintOutput("Monochrome");
     setCartridgeModel("");
-    setScanResolution("");
-    setScannerType("Flatbed");
-    setInterfaceType("USB");
-    setNetworkCategory("Switch");
-    setPortCount("24 Ports");
-    setManagementType("Managed");
-    setIpMacAddress("");
-    setRaidConfig("RAID 1");
-    setFormFactor("Rack");
-    setOperatingSystem("");
-    setStaticIp("");
     setResolution("1080p");
-    setPanelType("IPS");
-    setDisplayPorts("");
     setNotes("");
   };
 
@@ -155,7 +173,7 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
       setBrand(asset.brand || "");
       setModel(asset.model || "");
       setSerialNumber(asset.serialNumber || "");
-      setStatus(asset.status || "Active");
+      setStatus(asset.status || "Stock - New");
       setLocation(asset.location || LOCATIONS[0]);
       setHolderName(asset.holderName || "");
       setHolderEmployeeId(asset.holderEmployeeId || "");
@@ -170,32 +188,69 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
       setGpu(asset.gpu || "");
       setImei(asset.imei || "");
       setScreenSize(asset.screenSize || "");
-      setConnectivity(asset.connectivity || "Wi-Fi");
       setPrinterType(asset.printerType || "Laser");
       setPrintOutput(asset.printOutput || "Monochrome");
       setCartridgeModel(asset.cartridgeModel || "");
-      setScanResolution(asset.scanResolution || "");
-      setScannerType(asset.scannerType || "Flatbed");
-      setInterfaceType(asset.interfaceType || "USB");
-      setNetworkCategory(asset.networkCategory || "Switch");
-      setPortCount(asset.portCount || "24 Ports");
-      setManagementType(asset.managementType || "Managed");
-      setIpMacAddress(asset.ipMacAddress || "");
-      setRaidConfig(asset.raidConfig || "RAID 1");
-      setFormFactor(asset.formFactor || "Rack");
-      setOperatingSystem(asset.operatingSystem || "");
-      setStaticIp(asset.staticIp || "");
       setResolution(asset.resolution || "1080p");
-      setPanelType(asset.panelType || "IPS");
-      setDisplayPorts(asset.displayPorts || "");
       setNotes(asset.notes || "");
     }
   }, [open, asset]);
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      toast.success(`File selected: ${file.name}`);
+      e.target.value = '';
+    }
+  };
+
   const handleSubmit = () => {
-    if (!name.trim()) {
-      toast.error("Please enter asset name.");
-      return;
+    const reqFields = [
+      { label: "Asset Name", val: name },
+      { label: "Location", val: location },
+      { label: "Supplier", val: supplier },
+      { label: "Delivery Date", val: deliveryDate },
+      { label: "Manufacturing Date", val: manufacturingDate },
+    ];
+
+    if (selectedType !== "Other") {
+      reqFields.push({ label: "Serial Number", val: serialNumber });
+      reqFields.push({ label: "Brand", val: brand });
+      reqFields.push({ label: "Model", val: model });
+    } else {
+      reqFields.push({ label: "Item Description & Notes", val: notes });
+    }
+
+    if (showEmployeeFields) {
+      reqFields.push({ label: "Assigned Employee Name", val: holderName });
+      reqFields.push({ label: "Assigned Employee ID", val: holderEmployeeId });
+    }
+
+    if (selectedType === "Laptop" || selectedType === "Desktop") {
+      reqFields.push(
+        { label: "Processor", val: processor },
+        { label: "RAM", val: ram },
+        { label: "Storage Capacity", val: memory },
+        { label: "Graphic Card (GPU)", val: gpu }
+      );
+    } else if (selectedType === "Tablet") {
+      reqFields.push(
+        { label: "IMEI Number", val: imei },
+        { label: "Screen Size", val: screenSize },
+        { label: "RAM", val: ram },
+        { label: "Storage Capacity", val: memory }
+      );
+    } else if (selectedType === "Printer") {
+      reqFields.push({ label: "Cartridge / Toner Model", val: cartridgeModel });
+    } else if (selectedType === "Monitor") {
+      reqFields.push({ label: "Screen Size", val: screenSize });
+    }
+
+    for (const field of reqFields) {
+      if (!field.val || !String(field.val).trim()) {
+        toast.error(`Please fill the required field: ${field.label}`);
+        return; 
+      }
     }
 
     const payload: Omit<Asset, "id" | "barcode"> = {
@@ -221,23 +276,9 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
       screenSize,
       printerType,
       printOutput,
-      scanResolution,
-      interfaceType,
-      networkCategory,
-      portCount,
-      ipMacAddress,
-      raidConfig,
-      formFactor,
-      operatingSystem,
-      staticIp,
-      resolution,
-      panelType,
-      displayPorts,
-      notes,
-      connectivity,
       cartridgeModel,
-      scannerType,
-      managementType,
+      resolution,
+      notes,
     };
 
     onSubmit(payload);
@@ -245,21 +286,22 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl border-border/80 shadow-2xl">
+        <DialogHeader className="pb-3 border-b border-border/60">
+          <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
             {asset ? `Edit: ${asset.name}` : `Add New Asset (${selectedType})`}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs text-muted-foreground">
             {step === 1
-              ? "Select the hardware category to configure the right fields."
+              ? "Select the hardware category to configure the right technical specifications."
               : `Fill in the required information for this ${selectedType}.`}
           </DialogDescription>
         </DialogHeader>
 
+        {/* الخطوة 1: بطاقات الأجهزة التفاعلية الملونة */}
         {step === 1 && (
-          <div className="py-2">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="py-3">
+            <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
               {APP_DEVICE_TYPES.map((d) => {
                 const Icon = d.icon;
                 const isSelected = selectedType === d.id;
@@ -269,17 +311,37 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                     type="button"
                     onClick={() => {
                       setSelectedType(d.id);
+                      setName(d.id);
                       setStep(2);
                     }}
-                    className={`flex flex-col items-center justify-center rounded-xl border p-5 text-center transition-all ${
+                    className={`group relative flex flex-col items-start justify-between rounded-2xl border p-4.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
                       isSelected
-                        ? "border-primary bg-primary/10 text-primary shadow-sm"
-                        : "border-border/70 hover:border-primary hover:bg-muted/40"
+                        ? "border-teal-500 bg-teal-50/40 dark:bg-teal-950/20 shadow-sm ring-2 ring-teal-500/25"
+                        : "border-border/80 bg-card hover:border-teal-500/40 hover:bg-muted/30"
                     }`}
                   >
-                    <Icon className="mb-2 h-8 w-8" />
-                    <span className="text-sm font-semibold">{d.label}</span>
-                    <span className="text-[11px] text-muted-foreground mt-0.5">{d.desc}</span>
+                    <div className="flex items-center justify-between w-full mb-3">
+                      <div className={`p-2.5 rounded-xl border transition-transform duration-200 group-hover:scale-110 ${d.iconTheme}`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      
+                      {isSelected ? (
+                        <CheckCircle2 className="size-4 text-teal-600 dark:text-teal-400" />
+                      ) : (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          {d.badge}
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <span className="text-sm font-bold text-foreground block group-hover:text-teal-600 transition-colors">
+                        {d.label}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground mt-0.5 leading-snug block">
+                        {d.desc}
+                      </span>
+                    </div>
                   </button>
                 );
               })}
@@ -287,18 +349,46 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
           </div>
         )}
 
+        {/* الخطوة 2: نماذج إدخال البيانات المكتملة */}
         {step === 2 && (
-          <div className="space-y-4">
+          <div className="space-y-4 pt-1">
+            
+            {/* بطاقة الاستيراد السريع */}
+            {!asset && (
+              <div className="flex items-center justify-between rounded-xl border border-teal-500/30 bg-teal-500/10 p-4 mb-2">
+                <div>
+                  <h4 className="text-sm font-bold text-teal-700 dark:text-teal-400">Bulk Import via CSV / Excel</h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">Save time by importing multiple assets at once using our spreadsheet template.</p>
+                </div>
+                
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" 
+                  onChange={handleFileUpload} 
+                />
+                <Button 
+                  type="button"
+                  variant="outline" 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-teal-500/50 text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/30 font-medium"
+                >
+                  <UploadCloud className="size-4 mr-2" /> Import File
+                </Button>
+              </div>
+            )}
+
             {selectedType === "Other" ? (
               <div className="space-y-3">
                 <Field label="Item Name *">
                   <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Wireless Ergonomic Mouse" />
                 </Field>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Brand / Manufacturer">
+                  <Field label="Brand / Manufacturer *">
                     <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Logitech, Anker" />
                   </Field>
-                  <Field label="Location">
+                  <Field label="Location *">
                     <Select value={location} onValueChange={setLocation}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -309,7 +399,7 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                     </Select>
                   </Field>
                 </div>
-                <Field label="Item Description & Notes">
+                <Field label="Item Description & Notes *">
                   <Textarea
                     rows={4}
                     placeholder="Enter specs or details..."
@@ -320,7 +410,7 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
               </div>
             ) : (
               <>
-                <div className="rounded-lg border border-border/70 p-4">
+                <div className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
                   <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     1. Basic Information
                   </h4>
@@ -331,13 +421,13 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                     <Field label="Serial Number *">
                       <Input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} placeholder="e.g. SN-981240" />
                     </Field>
-                    <Field label="Brand">
+                    <Field label="Brand *">
                       <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Dell, HP, Apple" />
                     </Field>
-                    <Field label="Model">
+                    <Field label="Model *">
                       <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. Latitude 5420, M-102" />
                     </Field>
-                    <Field label="Status">
+                    <Field label="Status *">
                       <Select value={status} onValueChange={(v) => setStatus(v as AssetStatus)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -347,7 +437,7 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="Location">
+                    <Field label="Location *">
                       <Select value={location} onValueChange={setLocation}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -360,20 +450,20 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-primary/40 bg-primary/[0.03] p-4">
-                  <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-primary">
+                <div className="rounded-xl border border-teal-500/30 bg-teal-500/[0.02] p-4">
+                  <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
                     2. {selectedType} Hardware Specs
                   </h4>
 
                   {(selectedType === "Laptop" || selectedType === "Desktop") && (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Processor (CPU)">
+                      <Field label="Processor (CPU) *">
                         <Input value={processor} onChange={(e) => setProcessor(e.target.value)} placeholder="e.g. Intel Core i7-12700H" />
                       </Field>
-                      <Field label="RAM (GB)">
+                      <Field label="RAM (GB) *">
                         <Input value={ram} onChange={(e) => setRam(e.target.value)} placeholder="e.g. 16 GB" />
                       </Field>
-                      <Field label="Hard Disk Type">
+                      <Field label="Hard Disk Type *">
                         <Select value={hardDiskType} onValueChange={setHardDiskType}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -382,10 +472,10 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                           </SelectContent>
                         </Select>
                       </Field>
-                      <Field label="Storage Capacity">
+                      <Field label="Storage Capacity *">
                         <Input value={memory} onChange={(e) => setMemory(e.target.value)} placeholder="e.g. 512 GB" />
                       </Field>
-                      <Field label="Graphic Card (GPU)">
+                      <Field label="Graphic Card (GPU) *">
                         <Input value={gpu} onChange={(e) => setGpu(e.target.value)} placeholder="e.g. RTX 3050 / Iris Xe" />
                       </Field>
                     </div>
@@ -396,30 +486,21 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                       <Field label="IMEI Number *">
                         <Input value={imei} onChange={(e) => setImei(e.target.value)} placeholder="e.g. 354890123456789" />
                       </Field>
-                      <Field label="Screen Size (Inches)">
+                      <Field label="Screen Size (Inches) *">
                         <Input value={screenSize} onChange={(e) => setScreenSize(e.target.value)} placeholder="e.g. 10.9-inch" />
                       </Field>
-                      <Field label="RAM">
+                      <Field label="RAM *">
                         <Input value={ram} onChange={(e) => setRam(e.target.value)} placeholder="e.g. 8 GB" />
                       </Field>
-                      <Field label="Storage Capacity">
+                      <Field label="Storage Capacity *">
                         <Input value={memory} onChange={(e) => setMemory(e.target.value)} placeholder="e.g. 128 GB" />
-                      </Field>
-                      <Field label="Connectivity">
-                        <Select value={connectivity} onValueChange={setConnectivity}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Wi-Fi">Wi-Fi Only</SelectItem>
-                            <SelectItem value="Wi-Fi + Cellular (4G/5G)">Wi-Fi + Cellular (4G/5G)</SelectItem>
-                          </SelectContent>
-                        </Select>
                       </Field>
                     </div>
                   )}
 
                   {selectedType === "Printer" && (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Printer Type">
+                      <Field label="Printer Type *">
                         <Select value={printerType} onValueChange={setPrinterType}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -430,7 +511,7 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                           </SelectContent>
                         </Select>
                       </Field>
-                      <Field label="Print Color">
+                      <Field label="Print Color *">
                         <Select value={printOutput} onValueChange={setPrintOutput}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -439,131 +520,18 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                           </SelectContent>
                         </Select>
                       </Field>
-                      <Field label="Connection Interface">
-                        <Select value={connectivity} onValueChange={setConnectivity}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Network IP">Network IP (Ethernet / Wi-Fi)</SelectItem>
-                            <SelectItem value="USB Only">USB Only</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                      <Field label="Cartridge / Toner Model">
+                      <Field label="Cartridge / Toner Model *">
                         <Input value={cartridgeModel} onChange={(e) => setCartridgeModel(e.target.value)} placeholder="e.g. HP 26A / CF226A" />
-                      </Field>
-                    </div>
-                  )}
-
-                  {selectedType === "Scanner" && (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Scan Resolution (DPI)">
-                        <Input value={scanResolution} onChange={(e) => setScanResolution(e.target.value)} placeholder="e.g. 600 x 1200 DPI" />
-                      </Field>
-                      <Field label="Scanner Type">
-                        <Select value={scannerType} onValueChange={setScannerType}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Flatbed">Flatbed</SelectItem>
-                            <SelectItem value="Document Feeder (ADF)">Document Feeder (ADF)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                      <Field label="Interface Type">
-                        <Select value={interfaceType} onValueChange={setInterfaceType}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="USB">USB</SelectItem>
-                            <SelectItem value="Network Ethernet">Network Ethernet</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                    </div>
-                  )}
-
-                  {selectedType === "Network Device" && (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Device Category">
-                        <Select value={networkCategory} onValueChange={setNetworkCategory}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Managed Switch">Managed Switch</SelectItem>
-                            <SelectItem value="Unmanaged Switch">Unmanaged Switch</SelectItem>
-                            <SelectItem value="Router">Router</SelectItem>
-                            <SelectItem value="Access Point (AP)">Access Point (AP)</SelectItem>
-                            <SelectItem value="Firewall">Firewall</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                      <Field label="Port Count">
-                        <Select value={portCount} onValueChange={setPortCount}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="8 Ports">8 Ports</SelectItem>
-                            <SelectItem value="16 Ports">16 Ports</SelectItem>
-                            <SelectItem value="24 Ports">24 Ports</SelectItem>
-                            <SelectItem value="48 Ports">48 Ports</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                      <Field label="Management">
-                        <Select value={managementType} onValueChange={setManagementType}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Managed">Managed (Layer 2 / Layer 3)</SelectItem>
-                            <SelectItem value="Unmanaged">Unmanaged</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                      <Field label="IP / MAC Address">
-                        <Input value={ipMacAddress} onChange={(e) => setIpMacAddress(e.target.value)} placeholder="e.g. 192.168.1.1 / 00:1A:2B:3C:4D:5E" />
-                      </Field>
-                    </div>
-                  )}
-
-                  {selectedType === "Server" && (
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="CPU & Cores">
-                        <Input value={processor} onChange={(e) => setProcessor(e.target.value)} placeholder="e.g. 2x Xeon Silver (32 Cores)" />
-                      </Field>
-                      <Field label="RAM (GB)">
-                        <Input value={ram} onChange={(e) => setRam(e.target.value)} placeholder="e.g. 64 GB ECC" />
-                      </Field>
-                      <Field label="RAID Configuration">
-                        <Select value={raidConfig} onValueChange={setRaidConfig}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="No RAID">No RAID</SelectItem>
-                            <SelectItem value="RAID 0">RAID 0</SelectItem>
-                            <SelectItem value="RAID 1">RAID 1</SelectItem>
-                            <SelectItem value="RAID 5">RAID 5</SelectItem>
-                            <SelectItem value="RAID 10">RAID 10</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                      <Field label="Form Factor">
-                        <Select value={formFactor} onValueChange={setFormFactor}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Rack">Rackmount (1U / 2U / 4U)</SelectItem>
-                            <SelectItem value="Tower">Tower</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                      <Field label="Operating System">
-                        <Input value={operatingSystem} onChange={(e) => setOperatingSystem(e.target.value)} placeholder="e.g. Windows Server 2022" />
-                      </Field>
-                      <Field label="Static IP Address">
-                        <Input value={staticIp} onChange={(e) => setStaticIp(e.target.value)} placeholder="e.g. 10.0.0.15" />
                       </Field>
                     </div>
                   )}
 
                   {selectedType === "Monitor" && (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Screen Size (Inches)">
+                      <Field label="Screen Size (Inches) *">
                         <Input value={screenSize} onChange={(e) => setScreenSize(e.target.value)} placeholder="e.g. 27-inch" />
                       </Field>
-                      <Field label="Resolution">
+                      <Field label="Resolution *">
                         <Select value={resolution} onValueChange={setResolution}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -573,38 +541,31 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                           </SelectContent>
                         </Select>
                       </Field>
-                      <Field label="Panel Type">
-                        <Select value={panelType} onValueChange={setPanelType}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="IPS">IPS</SelectItem>
-                            <SelectItem value="VA">VA</SelectItem>
-                            <SelectItem value="TN">TN</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                      <Field label="Video Ports">
-                        <Input value={displayPorts} onChange={(e) => setDisplayPorts(e.target.value)} placeholder="e.g. HDMI, DisplayPort, Type-C" />
-                      </Field>
                     </div>
                   )}
                 </div>
 
-                <div className="rounded-lg border border-border/60 bg-muted/20 p-4">
+                <div className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
                   <h4 className="mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     3. Assignment, Dates & Warranty
                   </h4>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Assigned Employee Name">
-                      <Input value={holderName} onChange={(e) => setHolderName(e.target.value)} placeholder="e.g. Ahmed Emam (or leave blank)" />
-                    </Field>
-                    <Field label="Assigned Employee ID">
-                      <Input value={holderEmployeeId} onChange={(e) => setHolderEmployeeId(e.target.value)} placeholder="e.g. EMP-102" />
-                    </Field>
-                    <Field label="Supplier">
+                    
+                    {showEmployeeFields && (
+                      <>
+                        <Field label="Assigned Employee Name *">
+                          <Input value={holderName} onChange={(e) => setHolderName(e.target.value)} placeholder="e.g. Ahmed Emam" />
+                        </Field>
+                        <Field label="Assigned Employee ID *">
+                          <Input value={holderEmployeeId} onChange={(e) => setHolderEmployeeId(e.target.value)} placeholder="e.g. EMP-102" />
+                        </Field>
+                      </>
+                    )}
+
+                    <Field label="Supplier *">
                       <Input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="e.g. Raya, B.TECH" />
                     </Field>
-                    <Field label="Warranty Period">
+                    <Field label="Warranty Period *">
                       <Select value={warranty} onValueChange={setWarranty}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -614,10 +575,10 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="Delivery Date">
+                    <Field label="Delivery Date *">
                       <Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} />
                     </Field>
-                    <Field label="Manufacturing Date">
+                    <Field label="Manufacturing Date *">
                       <Input type="date" value={manufacturingDate} onChange={(e) => setManufacturingDate(e.target.value)} />
                     </Field>
                   </div>
@@ -627,9 +588,9 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
           </div>
         )}
 
-        <DialogFooter className="mt-4 flex items-center justify-between sm:justify-between">
+        <DialogFooter className="mt-4 flex items-center justify-between sm:justify-between pt-3 border-t border-border/60">
           {step === 2 && !asset ? (
-            <Button variant="outline" size="sm" onClick={() => setStep(1)} className="gap-1">
+            <Button variant="outline" size="sm" onClick={() => setStep(1)} className="gap-1.5 font-medium">
               <ChevronLeft className="h-4 w-4" /> Change Device Type
             </Button>
           ) : (
@@ -639,11 +600,13 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
           )}
 
           {step === 1 ? (
-            <Button onClick={() => setStep(2)} className="gap-1">
+            <Button onClick={() => setStep(2)} className="gap-1.5 bg-teal-600 hover:bg-teal-700 text-white font-medium shadow-sm">
               Next <ArrowRight className="h-4 w-4" />
             </Button>
           ) : (
-            <Button onClick={handleSubmit}>{asset ? "Save Changes" : "Save Asset"}</Button>
+            <Button onClick={handleSubmit} className="bg-teal-600 hover:bg-teal-700 text-white font-medium shadow-sm">
+              {asset ? "Save Changes" : "Save Asset"}
+            </Button>
           )}
         </DialogFooter>
       </DialogContent>
@@ -654,7 +617,7 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-semibold">{label}</Label>
+      <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{label}</Label>
       {children}
     </div>
   );

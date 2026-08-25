@@ -26,7 +26,21 @@ export function typeData(assets: Asset[]): Datum[] {
 }
 
 export function locationData(assets: Asset[]): Datum[] {
-  return countBy(assets, "location").slice(0, 8);
+  const map = new Map<string, number>();
+  for (const item of assets) {
+    let loc = String(item.location ?? "—") || "—";
+    // اختصار الأسماء الطويلة لمنع تداخل النصوص
+    loc = loc
+      .replace(" Scientific Office", "")
+      .replace(" (Headquarters)", "")
+      .replace(" Office", "")
+      .trim();
+
+    map.set(loc, (map.get(loc) ?? 0) + 1);
+  }
+  return Array.from(map, ([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8);
 }
 
 export function maintenanceMonthly(records: MaintenanceRecord[]): Datum[] {

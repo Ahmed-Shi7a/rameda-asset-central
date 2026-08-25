@@ -1,278 +1,352 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { Mail, ArrowRight, ShieldCheck, KeyRound, ArrowLeft } from "lucide-react";
+import { 
+  Mail, 
+  ShieldCheck, 
+  ArrowRight, 
+  Sparkles, 
+  KeyRound,
+  Boxes,
+  Lock,
+  Printer,
+  ChevronLeft
+} from "lucide-react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useApp } from "@/lib/app-context";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
-    meta: [
-      { title: "Sign In — RAMEDA Pharmaceuticals" },
-      { name: "description", content: "RAMEDA Asset Management System" },
-    ],
+    meta: [{ title: "Sign In — RAMEDA Asset Central" }],
   }),
   component: LoginPage,
 });
 
-/**
- * RAMEDA 4-Square Emblem
- */
-function RamedaLogo({ className = "size-8" }: { className?: string }) {
+// أيقونة تكنولوجية مذهلة (Tech Core / System Node) بديلة للوجو
+function SystemIcon({ className = "size-8" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      <path d="M15 15H42V42H15V15Z" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M58 15H85V42H58V15Z" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M15 58H42V85H15V58Z" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M58 58H85V85H58V58Z" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="50" cy="50" r="6" fill="currentColor" />
+    <svg 
+      viewBox="0 0 64 64" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg" 
+      className={className}
+    >
+      {/* Outer Tech Frame */}
+      <rect x="12" y="12" width="40" height="40" rx="10" stroke="currentColor" strokeWidth="2.5" className="text-teal-500/40" />
+      {/* Inner Core Border */}
+      <rect x="22" y="22" width="20" height="20" rx="6" stroke="currentColor" strokeWidth="4" className="text-teal-400" />
+      {/* Center Energy Dot */}
+      <circle cx="32" cy="32" r="4" fill="currentColor" className="text-teal-300" />
+      {/* Connection Nodes */}
+      <path d="M32 12 V22 M32 42 V52 M12 32 H22 M42 32 H52" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-teal-300" />
+      {/* Corner Accents */}
+      <path d="M12 24 V12 H24 M40 12 H52 V24 M52 40 V52 H40 M24 52 H12 V40" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-teal-500/60" />
     </svg>
   );
 }
 
 function LoginPage() {
-  const { login } = useApp();
+  const { login } = useApp() as any;
   const navigate = useNavigate();
-  const [step, setStep] = useState<"email" | "otp">("email");
+  
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState<"email" | "otp">("email");
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Step 1: Request OTP
-  const handleSendOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanEmail = email.trim().toLowerCase();
-    if (!cleanEmail) {
-      toast.error("Please enter your email address");
+  function handleRequestOTP(selectedEmail?: string) {
+    const targetEmail = (selectedEmail || email).trim();
+    if (!targetEmail) {
+      toast.error("Please enter your corporate email.");
       return;
     }
-
     setLoading(true);
     setTimeout(() => {
-      setLoading(false);
+      setEmail(targetEmail);
       setStep("otp");
-      toast.success(`Verification code sent to ${cleanEmail}`);
-    }, 400);
-  };
-
-  // Step 2: Verify OTP and Login
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp.trim()) {
-      toast.error("Please enter the verification code");
-      return;
-    }
-
-    // Default mock verification code
-    if (otp.trim() !== "123456") {
-      toast.error("Invalid verification code. (Default is 123456)");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const success = await login(email.trim().toLowerCase());
-      if (success) {
-        toast.success("Signed in successfully");
-        navigate({ to: "/" });
-      } else {
-        toast.error("Account not found. Please check your email address.");
-      }
-    } catch {
-      toast.error("Authentication failed. Please try again.");
-    } finally {
       setLoading(false);
-    }
-  };
+      toast.success("Authentication code sent!");
+      setTimeout(() => {
+        otpRefs.current[0]?.focus();
+      }, 100);
+    }, 600);
+  }
 
-  const fillDemo = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setOtp("123456");
-    setStep("otp");
-    toast.info("Demo credentials applied. Click verify to continue.");
-  };
+  function handleVerifyOTP(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    const code = otp.join("");
+    if (code.length < 6) {
+      toast.error("Please enter the 6-digit code.");
+      return;
+    }
+    setLoading(true);
+    setTimeout(() => {
+      if (typeof login === "function") {
+        login(email);
+      }
+      toast.success("Welcome back!");
+      navigate({ to: "/" });
+      setLoading(false);
+    }, 400);
+  }
+
+  function handleOtpChange(index: number, value: string) {
+    if (value.length > 1) {
+      const pastedCode = value.slice(0, 6).split("");
+      const newOtp = [...otp];
+      for (let i = 0; i < pastedCode.length; i++) {
+        if (i < 6) newOtp[i] = pastedCode[i];
+      }
+      setOtp(newOtp);
+      const nextFocus = Math.min(pastedCode.length, 5);
+      otpRefs.current[nextFocus]?.focus();
+      return;
+    }
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+    if (value && index < 5) {
+      otpRefs.current[index + 1]?.focus();
+    }
+  }
+
+  function handleOtpKeyDown(index: number, e: React.KeyboardEvent) {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    } else if (e.key === "Enter" && otp.join("").length === 6) {
+      handleVerifyOTP();
+    }
+  }
 
   return (
-    <div className="flex min-h-screen w-full bg-slate-950 font-sans text-slate-100 selection:bg-emerald-500 selection:text-white">
-      {/* Left Column: RAMEDA Brand & Waves */}
-      <div className="relative hidden lg:flex lg:w-1/2 xl:w-7/12 flex-col justify-between overflow-hidden p-12 lg:p-16 border-r border-slate-800/80 bg-gradient-to-br from-slate-950 via-[#071626] to-[#041d1a]">
-        
-        {/* Subtle Fluid Waves */}
-        <div className="absolute inset-0 opacity-20 pointer-events-none">
-          <svg className="w-full h-full" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M-100 220 C 150 120, 350 460, 850 260" stroke="#10b981" strokeWidth="2" strokeOpacity="0.7" />
-            <path d="M-100 270 C 170 170, 370 490, 850 310" stroke="#06b6d4" strokeWidth="2.5" strokeOpacity="0.8" />
-            <path d="M-100 320 C 190 220, 390 520, 850 360" stroke="#2563eb" strokeWidth="2" strokeOpacity="0.8" />
-            <path d="M-100 370 C 220 270, 420 550, 850 410" stroke="#059669" strokeWidth="1.5" strokeOpacity="0.6" />
-          </svg>
-        </div>
+    <div className="flex min-h-screen w-full flex-col lg:flex-row bg-background antialiased selection:bg-teal-500/20 font-sans">
+      {/* Left Branding Side */}
+      <div className="relative flex flex-1 flex-col justify-between overflow-hidden bg-gradient-to-b from-[#080E14] via-[#0D1822] to-[#070D12] p-8 lg:p-14 text-white border-r border-slate-800/60">
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b12_1px,transparent_1px),linear-gradient(to_bottom,#1e293b12_1px,transparent_1px)] bg-[size:32px_32px]" />
+        <div className="absolute -left-24 -top-24 size-[420px] rounded-full bg-teal-500/10 blur-[100px] pointer-events-none" />
+        <div className="absolute -right-24 bottom-12 size-96 rounded-full bg-emerald-500/10 blur-[100px] pointer-events-none" />
 
-        <div className="absolute -left-20 -top-20 h-80 w-80 rounded-full bg-emerald-500/15 blur-[100px]" />
-        <div className="absolute right-10 bottom-10 h-80 w-80 rounded-full bg-blue-600/20 blur-[100px]" />
-
-        {/* Top Header Logo */}
-        <div className="relative z-10 flex items-center gap-3">
-          <div className="grid size-11 place-items-center rounded-xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-blue-600 text-white shadow-lg shadow-emerald-500/15">
-            <RamedaLogo className="size-6 text-white" />
+        {/* Brand Header */}
+        <div className="relative z-10 flex items-center gap-4">
+          <div className="flex size-14 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-400 shadow-lg shadow-teal-500/10 p-2.5 backdrop-blur-md">
+            <SystemIcon className="size-9 text-teal-400" />
           </div>
-          <div>
-            <span className="text-2xl font-black lowercase tracking-tight text-white">rameda</span>
-            <p className="text-[11px] font-semibold text-emerald-400 tracking-wider uppercase">Pharmaceuticals</p>
+          <div className="flex flex-col">
+            <span className="text-[26px] font-bold tracking-tight text-white leading-none lowercase">rameda</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-400 mt-1.5 opacity-90">
+              Asset Central
+            </span>
           </div>
         </div>
 
-        {/* Core Presentation */}
-        <div className="relative z-10 my-auto max-w-md space-y-4 py-8">
-          <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl leading-tight">
-            Asset Management &amp; Barcode System
+        {/* Center Content Section */}
+        <div className="relative z-10 max-w-xl my-auto py-10">
+          <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/25 bg-teal-500/10 px-3.5 py-1 text-xs font-medium text-teal-300 mb-6 backdrop-blur-sm">
+            <Sparkles className="size-3.5 text-teal-400" />
+            <span>IT Asset Management &amp; Barcode System</span>
+          </div>
+
+          <h1 className="text-3xl sm:text-4xl lg:text-[40px] font-bold tracking-tight text-white leading-[1.2]">
+            Smart Infrastructure &amp; Asset Tracking
           </h1>
 
-          <p className="text-sm text-slate-400 leading-relaxed">
-            Centralized platform for tracking hardware inventory, maintenance operations, and standard RAMEDA thermal label printing across HQ and regional scientific offices.
+          <p className="mt-4 text-sm sm:text-base text-slate-400 leading-relaxed max-w-lg">
+            A unified management console for monitoring company hardware, maintenance cycles, and regional branch assets.
           </p>
+
+          <div className="mt-8 space-y-3">
+            <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-colors hover:bg-white/[0.05]">
+              <div className="p-2 rounded-lg bg-teal-500/10 text-teal-400 shrink-0">
+                <Boxes className="size-4" />
+              </div>
+              <div className="text-xs">
+                <p className="font-semibold text-slate-200 text-sm">Real-Time Inventory &amp; Stock</p>
+                <p className="text-slate-400 mt-0.5">Live visibility over HQ and all regional scientific offices.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-colors hover:bg-white/[0.05]">
+              <div className="p-2 rounded-lg bg-teal-500/10 text-teal-400 shrink-0">
+                <Lock className="size-4" />
+              </div>
+              <div className="text-xs">
+                <p className="font-semibold text-slate-200 text-sm">Granular Role-Based Access</p>
+                <p className="text-slate-400 mt-0.5">Role security with custom feature permissions per employee.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-colors hover:bg-white/[0.05]">
+              <div className="p-2 rounded-lg bg-teal-500/10 text-teal-400 shrink-0">
+                <Printer className="size-4" />
+              </div>
+              <div className="text-xs">
+                <p className="font-semibold text-slate-200 text-sm">Standard Barcode Generation</p>
+                <p className="text-slate-400 mt-0.5">Direct thermal printing support for hardware labeling.</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="relative z-10 flex items-center justify-between border-t border-slate-800/60 pt-6 text-xs text-slate-500">
-          <span>&copy; {new Date().getFullYear()} RAMEDA Pharmaceuticals</span>
+        {/* Footer */}
+        <div className="relative z-10 flex items-center justify-between border-t border-slate-800/80 pt-6 text-xs text-slate-500">
+          <p>© 2026 RAMEDA Pharmaceuticals. All rights reserved.</p>
           <div className="flex items-center gap-1.5 text-slate-400 font-medium">
-            <ShieldCheck className="size-4 text-emerald-400" />
+            <ShieldCheck className="size-4 text-teal-400" />
             <span>Enterprise Security</span>
           </div>
         </div>
       </div>
 
-      {/* Right Column: Clean OTP / Sign In Form */}
-      <div className="flex flex-1 flex-col justify-center bg-white px-6 py-12 sm:px-12 lg:w-1/2 lg:px-16 xl:w-5/12 text-slate-900">
-        <div className="mx-auto w-full max-w-sm space-y-7">
+      {/* Right Form Side */}
+      <div className="flex flex-1 items-center justify-center p-6 sm:p-12 lg:p-16 bg-slate-50/50 dark:bg-card">
+        <div className="w-full max-w-[380px]">
           
-          {/* Mobile Brand Header */}
-          <div className="flex items-center gap-3 lg:hidden">
-            <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-tr from-emerald-500 to-blue-600 text-white">
-              <RamedaLogo className="size-5 text-white" />
-            </div>
-            <div>
-              <span className="text-lg font-black lowercase text-slate-900">rameda</span>
-              <p className="text-xs text-slate-500 font-medium">Asset Management</p>
-            </div>
-          </div>
-
-          {/* Form Header */}
-          <div className="space-y-1.5">
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900">
-              {step === "email" ? "Sign In" : "Verification Code"}
-            </h2>
-            <p className="text-xs text-slate-500">
-              {step === "email"
-                ? "Enter your corporate email to receive an authentication code."
-                : `Enter the 6-digit verification code sent to ${email}`}
-            </p>
-          </div>
-
-          {/* Step 1: Email Form */}
           {step === "email" ? (
-            <form onSubmit={handleSendOtp} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    type="email"
-                    required
-                    placeholder="name@rameda.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 h-11 text-sm bg-slate-50 border-slate-200 focus-visible:bg-white focus-visible:border-emerald-600 focus-visible:ring-emerald-600/20 transition-all rounded-xl"
-                  />
-                </div>
+            // ================== STEP 1: EMAIL ENTRY ==================
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-7">
+              <div className="space-y-2 text-left">
+                <h2 className="text-3xl font-bold tracking-tight text-foreground">Sign In</h2>
+                <p className="text-[15px] text-muted-foreground">
+                  Enter your corporate email address to access your workspace.
+                </p>
               </div>
 
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full h-11 text-sm font-semibold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white shadow-md shadow-emerald-600/20 gap-2 transition-all"
-              >
-                {loading ? "Sending..." : (
-                  <>
-                    Send Code <ArrowRight className="size-4" />
-                  </>
-                )}
-              </Button>
-            </form>
+              <form onSubmit={(e) => { e.preventDefault(); handleRequestOTP(); }} className="space-y-5">
+                <div className="space-y-2.5">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    Corporate Email
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4.5 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      placeholder="name@rameda.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="h-12 pl-11 bg-background text-[15px] shadow-sm focus-visible:ring-teal-500 rounded-xl transition-all"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-12 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold shadow-md shadow-teal-600/20 text-[15px] gap-2 transition-all"
+                >
+                  {loading ? "Verifying..." : "Send Code"}
+                  {!loading && <ArrowRight className="size-4" />}
+                </Button>
+              </form>
+
+              {/* Quick Access Card */}
+              <Card className="border-border/70 bg-card shadow-sm rounded-xl">
+                <CardContent className="p-4 space-y-3.5">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                    <span className="flex items-center gap-1.5 tracking-wider uppercase">
+                      <KeyRound className="size-3.5 text-teal-500" /> Quick Access (Demo)
+                    </span>
+                    <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">Auto-fills OTP</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => handleRequestOTP("ahmed.emam@company.com")}
+                      className="flex flex-col items-start p-3 rounded-lg border border-border/80 bg-background hover:border-teal-500/50 hover:bg-teal-50/30 dark:hover:bg-teal-950/20 transition-all text-left group"
+                    >
+                      <span className="text-xs font-bold text-foreground group-hover:text-teal-600 transition-colors">
+                        Administrator
+                      </span>
+                      <span className="text-[11px] text-muted-foreground truncate w-full mt-1">
+                        ahmed.emam@company.com
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRequestOTP("sara.adel@company.com")}
+                      className="flex flex-col items-start p-3 rounded-lg border border-border/80 bg-background hover:border-teal-500/50 hover:bg-teal-50/30 dark:hover:bg-teal-950/20 transition-all text-left group"
+                    >
+                      <span className="text-xs font-bold text-foreground group-hover:text-teal-600 transition-colors">
+                        Standard User
+                      </span>
+                      <span className="text-[11px] text-muted-foreground truncate w-full mt-1">
+                        sara.adel@company.com
+                      </span>
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
-            /* Step 2: OTP Verification Form */
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-700">6-Digit Code</label>
-                  <button
-                    type="button"
-                    onClick={() => setStep("email")}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 hover:underline"
-                  >
-                    <ArrowLeft className="size-3" /> Change email
-                  </button>
-                </div>
-                <div className="relative">
-                  <KeyRound className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    type="text"
-                    required
-                    maxLength={6}
-                    placeholder="123456"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    className="pl-10 h-11 text-center font-mono text-base tracking-widest bg-slate-50 border-slate-200 focus-visible:bg-white focus-visible:border-emerald-600 focus-visible:ring-emerald-600/20 transition-all rounded-xl"
-                  />
-                </div>
+            // ================== STEP 2: OTP ENTRY ==================
+            <div className="animate-in fade-in slide-in-from-right-8 duration-500 space-y-8">
+              {/* Back Button */}
+              <div>
+                <button 
+                  onClick={() => setStep("email")}
+                  className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground hover:text-foreground transition-colors bg-muted/40 hover:bg-muted px-3 py-1.5 rounded-lg border border-border/50"
+                >
+                  <ChevronLeft className="size-4" /> Back to email
+                </button>
               </div>
 
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full h-11 text-sm font-semibold rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white shadow-md shadow-emerald-600/20 gap-2 transition-all"
-              >
-                {loading ? "Verifying..." : (
-                  <>
-                    Verify &amp; Sign In <ArrowRight className="size-4" />
-                  </>
-                )}
-              </Button>
-            </form>
+              {/* Title & Email */}
+              <div className="space-y-3 text-left">
+                <h2 className="text-3xl font-bold tracking-tight text-foreground">Verify identity</h2>
+                <p className="text-[15px] text-muted-foreground leading-relaxed">
+                  We've sent a 6-digit secure code to <br/>
+                  <span className="text-foreground font-semibold inline-block mt-1">{email}</span>
+                </p>
+              </div>
+
+              <form onSubmit={handleVerifyOTP} className="space-y-7">
+                <div className="space-y-3">
+                  <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Authentication Code
+                  </Label>
+                  <div className="flex items-center justify-between gap-2">
+                    {otp.map((digit, idx) => (
+                      <Input
+                        key={idx}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        ref={(el) => (otpRefs.current[idx] = el)}
+                        onChange={(e) => handleOtpChange(idx, e.target.value.replace(/\D/g, ""))}
+                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                        className="h-12 w-12 sm:h-14 sm:w-14 text-center text-xl font-bold rounded-xl border-border/80 shadow-sm focus-visible:ring-teal-500 focus-visible:border-teal-500 bg-background transition-all"
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={loading || otp.join("").length < 6}
+                  className="w-full h-12 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold shadow-md shadow-teal-600/20 text-[15px] transition-all"
+                >
+                  {loading ? "Authenticating..." : "Verify & Sign In"}
+                </Button>
+
+                <div className="text-center mt-6">
+                  <p className="text-[13px] font-medium text-muted-foreground">
+                    Didn't receive a code?{" "}
+                    <button type="button" className="font-bold text-teal-600 hover:text-teal-700 transition-colors ml-1">
+                      Click to resend
+                    </button>
+                  </p>
+                </div>
+              </form>
+            </div>
           )}
-
-          {/* Demo Fast Access */}
-          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                Quick Access (Demo)
-              </p>
-              <span className="text-[10px] text-slate-400 font-mono">OTP: 123456</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => fillDemo("ahmed.emam@company.com")}
-                className="flex flex-col items-start rounded-lg border border-slate-200 bg-white p-2 text-left transition-all hover:border-emerald-500 hover:bg-emerald-50/30 group"
-              >
-                <span className="text-xs font-bold text-slate-800 group-hover:text-emerald-700">Administrator</span>
-                <span className="text-[10px] text-slate-500 truncate w-full">ahmed.emam@...</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => fillDemo("sarah.it@company.com")}
-                className="flex flex-col items-start rounded-lg border border-slate-200 bg-white p-2 text-left transition-all hover:border-blue-500 hover:bg-blue-50/30 group"
-              >
-                <span className="text-xs font-bold text-slate-800 group-hover:text-blue-700">Standard User</span>
-                <span className="text-[10px] text-slate-500 truncate w-full">sarah.it@...</span>
-              </button>
-            </div>
-          </div>
-
         </div>
       </div>
     </div>

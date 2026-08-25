@@ -1,39 +1,104 @@
 export type UserRole = "admin" | "user";
 export type UserStatus = "Active" | "Inactive";
-export type AssetStatus = "Stock" | "In-Use" | "Under Maintenance" | "Scrapped";
+
+export type AssetStatus = "Active" | "Stock - New" | "Stock - Used" | "Under Maintenance" | "Scrapped";
+
+export type PermissionKey =
+  | "assets.view"
+  | "assets.create"
+  | "assets.edit"
+  | "assets.delete"
+  | "maintenance.view"
+  | "maintenance.create"
+  | "maintenance.edit"
+  | "maintenance.delete"
+  | "barcode.view"
+  | "barcode.scan"
+  | "barcode.print"
+  | "reports.view"
+  | "reports.export"
+  | "data.import"
+  | "data.export"
+  | "import_export.import"
+  | "import_export.export";
 
 export const ASSET_STATUSES: AssetStatus[] = [
-  "Stock",
-  "In-Use",
+  "Active",
+  "Stock - New",
+  "Stock - Used",
   "Under Maintenance",
   "Scrapped",
 ];
 
+export const DEVICE_TYPES = [
+  "Laptop",
+  "Desktop",
+  "Monitor",
+  "Printer",
+  "Tablet",
+  "Mobile Phone",
+  "Other",
+] as const;
+
+export const LOCATIONS = [
+  "HQ (Headquarters)",
+  "Alexandria Scientific Office",
+  "Mansoura Scientific Office",
+  "Tanta Scientific Office",
+  "Zagazig Scientific Office",
+  "Assiut Scientific Office",
+  "Sohag Scientific Office",
+  "Aswan Scientific Office",
+] as const;
+
 export interface Asset {
   id: string;
-  name: string;
-  hardwareType: string;
-  brand: string;
-  model: string;
-  serialNumber: string;
+  name?: string;
+  tagNumber?: string;
+  deviceType?: string;
+  hardwareType?: string;
+  brand?: string;
+  model?: string;
+  serialNumber?: string;
   status: AssetStatus;
   location: string;
+  supplier?: string;
+  holderEmployeeId?: string;
   assignedEmployee?: string;
+  holderName?: string;
+  assignedTo?: string;
   deliveryDate?: string;
+  manufacturingDate?: string;
+  purchaseDate?: string;
   warrantyMonths?: number;
+  warranty?: string;
+  processor?: string;
+  ram?: string;
+  hardDiskType?: string;
+  memory?: string;
+  gpu?: string;
+  imei?: string;
+  screenSize?: string;
+  printerType?: string;
+  printOutput?: string;
+  cartridgeModel?: string;
+  resolution?: string;
   notes?: string;
+  cost?: number;
 }
 
-export interface MaintenanceJob {
+export interface MaintenanceRecord {
   id: string;
   assetId: string;
-  assetName: string;
+  assetName?: string;
   issue: string;
-  cost: number;
+  cost?: number;
   status: "Pending" | "In-Progress" | "Completed";
-  date: string;
+  date?: string;
   technician?: string;
 }
+
+export interface MaintenanceJob extends MaintenanceRecord {}
 
 export interface Permissions {
   [key: string]: boolean;
@@ -85,14 +150,6 @@ export const PERMISSION_GROUPS = [
       { key: "import_export.export", label: "Export Data" },
     ],
   },
-  {
-    group: "User Management",
-    items: [
-      { key: "users.view", label: "View Users List" },
-      { key: "users.create", label: "Add New User" },
-      { key: "users.delete", label: "Delete User" },
-    ],
-  },
 ] as const;
 
 export function makePermissions(overrides: Partial<Permissions> = {}): Permissions {
@@ -112,9 +169,8 @@ export function makePermissions(overrides: Partial<Permissions> = {}): Permissio
     "reports.export": false,
     "import_export.import": false,
     "import_export.export": false,
-    "users.view": false,
-    "users.create": false,
-    "users.delete": false,
+    "data.import": false,
+    "data.export": false,
   };
   return { ...base, ...overrides };
 }

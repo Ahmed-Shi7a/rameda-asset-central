@@ -70,12 +70,26 @@ export function BarChartCard({
   return (
     <Shell title={title}>
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ left: -20, right: 8, top: 8 }}>
+        <BarChart data={data} margin={{ left: -20, right: 10, top: 10, bottom: 20 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-          <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} height={50} dy={10} />
-          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-          <Tooltip />
-          <Bar dataKey="value" fill={color} radius={[6, 6, 0, 0]} />
+          <XAxis 
+            dataKey="name" 
+            tick={{ fontSize: 11, fill: "currentColor" }} 
+            interval={0} 
+            angle={-25} 
+            textAnchor="end"
+            height={40}
+          />
+          <YAxis tick={{ fontSize: 11, fill: "currentColor" }} allowDecimals={false} />
+          <Tooltip 
+            contentStyle={{ 
+              backgroundColor: "hsl(var(--card))", 
+              borderColor: "hsl(var(--border))",
+              borderRadius: "8px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+            }} 
+          />
+          <Bar dataKey="value" fill={color} radius={[4, 4, 0, 0]} maxBarSize={45} />
         </BarChart>
       </ResponsiveContainer>
     </Shell>
@@ -86,11 +100,18 @@ export function LineChartCard({ title, data }: { title: string; data: Datum[] })
   return (
     <Shell title={title}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ left: -20, right: 8, top: 8 }}>
+        <LineChart data={data} margin={{ left: -20, right: 10, top: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-          <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-          <YAxis tick={{ fontSize: 11 }} />
-          <Tooltip />
+          <XAxis dataKey="name" tick={{ fontSize: 11, fill: "currentColor" }} />
+          <YAxis tick={{ fontSize: 11, fill: "currentColor" }} />
+          <Tooltip 
+            contentStyle={{ 
+              backgroundColor: "hsl(var(--card))", 
+              borderColor: "hsl(var(--border))",
+              borderRadius: "8px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
+            }} 
+          />
           <Line
             type="monotone"
             dataKey="value"

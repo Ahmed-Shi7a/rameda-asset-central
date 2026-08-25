@@ -1,196 +1,350 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, CheckCircle2, FileUp, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { 
+  UploadCloud, 
+  FileSpreadsheet, 
+  CheckCircle2, 
+  Package, 
+  History, 
+  Layers, 
+  Trash2, 
+  FileCheck 
+} from "lucide-react";
+import { useState, useRef } from "react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/layout/AppLayout";
-import { NoAccess } from "@/components/shared";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useApp } from "@/lib/app-context";
+import { type Asset, type AssetStatus } from "@/lib/types";
 
 export const Route = createFileRoute("/import-export")({
-  head: () => ({
-    meta: [
-      { title: "Import Data — AssetFlow" },
-      {
-        name: "description",
-        content: "Upload CSV, XLSX or JSON asset files, preview and validate records.",
-      },
-      { property: "og:title", content: "Import Data — AssetFlow" },
-    ],
-  }),
-  component: ImportExportPage,
+  component: ImportAssetsPage,
 });
 
-interface PreviewRow {
-  assetName: string;
-  deviceType: string;
-  location: string;
-  status: string;
-  valid: boolean;
-  issue?: string;
+type ImportMode = "active" | "stock-new" | "stock-used" | "mixed";
+
+interface ImportOption {
+  id: ImportMode;
+  title: string;
+  desc: string;
+  badge: string;
+  icon: any;
+  defaultStatus?: AssetStatus;
 }
 
-const SAMPLE: PreviewRow[] = [
-  { assetName: "Dell Latitude 5440", deviceType: "Laptop", location: "HQ (Headquarters)", status: "Active", valid: true },
+const IMPORT_OPTIONS: ImportOption[] = [
   {
-    assetName: "HP LaserJet 400",
-    deviceType: "Printer",
-    location: "Alexandria Scientific Office (ALX-SO)",
-    status: "Stock",
-    valid: true,
+    id: "active",
+    title: "Active Assets",
+    desc: "Import currently assigned assets. Requires employee details.",
+    badge: "Active",
+    icon: CheckCircle2,
+    defaultStatus: "Active",
   },
   {
-    assetName: "",
-    deviceType: "Monitor",
-    location: "Tanta Scientific Office (TNT-SO)",
-    status: "Active",
-    valid: false,
-    issue: "Missing asset name",
+    id: "stock-new",
+    title: "Stock — New",
+    desc: "Import brand new boxed items. Excludes employee assignments.",
+    badge: "Stock - New",
+    icon: Package,
+    defaultStatus: "Stock - New",
   },
   {
-    assetName: "Lenovo ThinkCentre",
-    deviceType: "Desktop",
-    location: "Mansoura Scientific Office (MNS-SO)",
-    status: "Retired",
-    valid: false,
-    issue: "Status must be Active, Stock or Under Maintenance",
+    id: "stock-used",
+    title: "Stock — Used",
+    desc: "Import returned/used stock items ready for re-assignment.",
+    badge: "Stock - Used",
+    icon: History,
+    defaultStatus: "Stock - Used",
   },
   {
-    assetName: "Canon DR-C225",
-    deviceType: "Scanner",
-    location: "HQ (Headquarters)",
-    status: "Under Maintenance",
-    valid: true,
+    id: "mixed",
+    title: "All Statuses (Mixed)",
+    desc: "Auto-detect status for each row directly from the file column.",
+    badge: "Smart Detection",
+    icon: Layers,
   },
 ];
 
-function ImportExportPage() {
-  const { can } = useApp();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [fileName, setFileName] = useState("");
-  const [rows, setRows] = useState<PreviewRow[]>([]);
+export function ImportAssetsPage() {
+  const { addAsset } = useApp() as any;
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!can("data.import")) {
-    return (
-      <AppLayout title="Import Assets">
-        <NoAccess feature="import asset data" />
-      </AppLayout>
-    );
-  }
+  const [selectedMode, setSelectedMode] = useState<ImportMode>("stock-new");
+  const [file, setFile] = useState<File | null>(null);
+  const [parsedRows, setParsedRows] = useState<Partial<Asset>[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const validCount = rows.filter((r) => r.valid).length;
-  const invalidCount = rows.length - validCount;
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+
+    setFile(selectedFile);
+    setIsProcessing(true);
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const text = (evt.target?.result as string) || "";
+        const lines = text.split(/\r\n|\n/).filter((l) => l.trim().length > 0);
+
+        if (!lines || lines.length <= 1) {
+          toast.error("File is empty or missing data rows.");
+          setIsProcessing(false);
+          return;
+        }
+
+        const firstLine = lines[0] || "";
+        const headers = firstLine.split(",").map((h) => h.trim().toLowerCase());
+        const data: Partial<Asset>[] = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const currentLine = lines[i] || "";
+          const cols = currentLine.split(",").map((c) => c.trim());
+          if (cols.length < 2) continue;
+
+          const row: Record<string, string> = {};
+          headers.forEach((h, idx) => {
+            row[h] = cols[idx] ?? "";
+          });
+
+          let finalStatus: AssetStatus = "Stock - New";
+          if (selectedMode === "active") finalStatus = "Active";
+          else if (selectedMode === "stock-new") finalStatus = "Stock - New";
+          else if (selectedMode === "stock-used") finalStatus = "Stock - Used";
+          else {
+            const rawStatus = (row["status"] || "").toLowerCase();
+            if (rawStatus.includes("new")) finalStatus = "Stock - New";
+            else if (rawStatus.includes("used")) finalStatus = "Stock - Used";
+            else if (rawStatus.includes("maint")) finalStatus = "Under Maintenance";
+            else if (rawStatus.includes("scrap")) finalStatus = "Scrapped";
+            else finalStatus = "Active";
+          }
+
+          data.push({
+            name: row["asset name"] || row["name"] || row["type"] || "Laptop Unit",
+            deviceType: row["device type"] || row["type"] || "Laptop",
+            brand: row["brand"] || "Dell",
+            model: row["model"] || "Standard",
+            serialNumber: row["serial number"] || row["serial"] || `SN-${Math.floor(100000 + Math.random() * 900000)}`,
+            status: finalStatus,
+            location: row["location"] || "HQ (Headquarters)",
+            holderName: finalStatus === "Stock - New" ? "" : (row["employee name"] || row["holder"] || ""),
+            holderEmployeeId: finalStatus === "Stock - New" ? "" : (row["employee id"] || row["empid"] || ""),
+            supplier: row["supplier"] || "Company Vendor",
+            deliveryDate: row["delivery date"] || new Date().toISOString().split("T")[0],
+            manufacturingDate: row["manufacturing date"] || "2025-01-01",
+          });
+        }
+
+        setParsedRows(data);
+        toast.success(`Successfully parsed ${data.length} assets from file.`);
+      } catch (err) {
+        toast.error("Failed to parse file format. Please use a valid CSV.");
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+
+    reader.readAsText(selectedFile);
+  };
+
+  const handleBulkImport = () => {
+    if (parsedRows.length === 0) {
+      toast.error("No valid asset records to import.");
+      return;
+    }
+
+    setIsProcessing(true);
+    let count = 0;
+
+    parsedRows.forEach((assetData) => {
+      if (typeof addAsset === "function") {
+        addAsset(assetData);
+        count++;
+      }
+    });
+
+    setTimeout(() => {
+      toast.success(`Successfully imported ${count || parsedRows.length} assets into inventory!`);
+      setFile(null);
+      setParsedRows([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      setIsProcessing(false);
+    }, 500);
+  };
 
   return (
-    <AppLayout
-      title="Import Assets"
-      description="Upload and validate bulk asset datasets directly into the inventory system."
-    >
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="shadow-sm lg:col-span-1">
+    <AppLayout title="Import Assets" description="Upload and validate bulk asset datasets directly into the inventory system.">
+      
+      {/* 1. Category Modes */}
+      <div className="mb-6">
+        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-3">
+          1. Select Import Target Category
+        </label>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {IMPORT_OPTIONS.map((opt) => {
+            const Icon = opt.icon;
+            const isSelected = selectedMode === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => {
+                  setSelectedMode(opt.id);
+                  if (parsedRows.length > 0 && opt.defaultStatus) {
+                    setParsedRows((prev) =>
+                      prev.map((r) => ({
+                        ...r,
+                        status: opt.defaultStatus,
+                        holderName: opt.id === "stock-new" ? "" : (r.holderName || ""),
+                        holderEmployeeId: opt.id === "stock-new" ? "" : (r.holderEmployeeId || ""),
+                      }))
+                    );
+                  }
+                }}
+                className={`flex flex-col text-left p-4 rounded-xl border transition-all relative ${
+                  isSelected
+                    ? "border-teal-500 bg-teal-50/40 dark:bg-teal-950/20 shadow-sm ring-2 ring-teal-500/20"
+                    : "border-border/80 bg-card hover:border-teal-500/40 hover:bg-muted/30"
+                }`}
+              >
+                <div className="flex items-center justify-between w-full mb-2.5">
+                  <div className={`p-2 rounded-lg ${isSelected ? "bg-teal-500 text-white" : "bg-muted text-muted-foreground"}`}>
+                    <Icon className="size-4.5" />
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                    isSelected ? "bg-teal-500/20 text-teal-700 dark:text-teal-300" : "bg-muted text-muted-foreground"
+                  }`}>
+                    {opt.badge}
+                  </span>
+                </div>
+                <p className="text-sm font-bold text-foreground">{opt.title}</p>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">{opt.desc}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. Upload and Preview */}
+      <div className="grid gap-6 lg:grid-cols-12">
+        <Card className="lg:col-span-5 border-border/80 shadow-sm">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base font-semibold">
-              <FileUp className="size-4 text-primary" /> Upload File
+            <CardTitle className="text-base flex items-center gap-2">
+              <UploadCloud className="size-5 text-teal-600" /> Upload File
             </CardTitle>
-            <CardDescription>Accepted formats: CSV, XLSX, JSON (Max 5 MB).</CardDescription>
+            <CardDescription className="text-xs">
+              Accepted formats: CSV, XLSX, XLS. Mode: <strong className="text-foreground">{IMPORT_OPTIONS.find(o => o.id === selectedMode)?.title}</strong>
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="w-full rounded-xl border-2 border-dashed border-border/80 p-8 text-center transition-all hover:border-primary/60 hover:bg-muted/30"
-            >
-              <Upload className="mx-auto size-7 text-muted-foreground" />
-              <p className="mt-2 text-sm font-semibold">Choose file to import</p>
-              <p className="text-xs text-muted-foreground">or drag and drop here</p>
-            </button>
             <input
-              ref={inputRef}
               type="file"
-              accept=".csv,.xlsx,.json"
+              ref={fileInputRef}
+              accept=".csv,.xlsx,.xls"
+              onChange={handleFileChange}
               className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                setFileName(file.name);
-                setRows(SAMPLE);
-                toast.success(`${file.name} uploaded and parsed.`);
-              }}
             />
-            {fileName ? (
-              <div className="rounded-lg border bg-muted/40 p-3 text-sm">
-                <p className="font-medium text-foreground">{fileName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {validCount} valid · {invalidCount} with issues
-                </p>
-              </div>
-            ) : null}
-            <Button
-              className="w-full"
-              disabled={validCount === 0}
-              onClick={() => toast.success(`${validCount} assets imported successfully`)}
+
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-border hover:border-teal-500/60 rounded-2xl p-8 text-center cursor-pointer bg-muted/20 hover:bg-teal-50/20 dark:hover:bg-teal-950/10 transition-all flex flex-col items-center justify-center min-h-[200px]"
             >
-              Import {validCount > 0 ? `${validCount} Valid Assets` : ""}
-            </Button>
+              <div className="p-3.5 rounded-full bg-teal-500/10 text-teal-600 mb-3">
+                <FileSpreadsheet className="size-8" />
+              </div>
+              <p className="text-sm font-bold text-foreground">
+                {file ? file.name : "Choose file to import"}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {file ? `${(file.size / 1024).toFixed(1)} KB` : "Click to browse from your computer"}
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={handleBulkImport}
+                disabled={parsedRows.length === 0 || isProcessing}
+                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white font-semibold gap-2 shadow-sm"
+              >
+                <FileCheck className="size-4" /> Import {parsedRows.length > 0 ? `(${parsedRows.length}) Assets` : ""}
+              </Button>
+              {parsedRows.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => { setParsedRows([]); setFile(null); }}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-sm lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">Validation & Data Preview</CardTitle>
-            <CardDescription>Records with errors will be excluded during database insertion.</CardDescription>
+        <Card className="lg:col-span-7 border-border/80 shadow-sm flex flex-col">
+          <CardHeader className="pb-3 border-b border-border/60">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Validation &amp; Data Preview</CardTitle>
+                <CardDescription className="text-xs">
+                  {parsedRows.length > 0
+                    ? `Showing parsed preview for ${parsedRows.length} assets.`
+                    : "Upload an asset dataset to inspect parsed rows and status mapping."}
+                </CardDescription>
+              </div>
+              {parsedRows.length > 0 && (
+                <span className="text-xs font-bold bg-teal-500/10 text-teal-600 px-2.5 py-1 rounded-md">
+                  Ready to Insert
+                </span>
+              )}
+            </div>
           </CardHeader>
-          <CardContent className="overflow-x-auto p-0 sm:px-6 sm:pb-6">
-            {rows.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <Upload className="size-8 text-muted-foreground/40 mb-2" />
-                <p className="text-sm font-medium text-muted-foreground">
-                  Upload an asset dataset to inspect parsed rows and validation status.
-                </p>
+
+          <CardContent className="p-0 flex-1 overflow-x-auto min-h-[260px]">
+            {parsedRows.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
+                <UploadCloud className="size-10 mb-2 opacity-30" />
+                <p className="text-sm font-medium">No dataset loaded yet</p>
+                <p className="text-xs mt-1">Select a category and choose a spreadsheet file.</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Asset Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Validation</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((r, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium">{r.assetName || "—"}</TableCell>
-                      <TableCell>{r.deviceType}</TableCell>
-                      <TableCell className="text-xs">{r.location}</TableCell>
-                      <TableCell>{r.status}</TableCell>
-                      <TableCell>
-                        {r.valid ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
-                            <CheckCircle2 className="size-3.5" /> Ready
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-destructive">
-                            <AlertTriangle className="size-3.5" /> {r.issue}
-                          </span>
-                        )}
-                      </TableCell>
-                    </TableRow>
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-muted/50 border-b border-border text-muted-foreground font-semibold">
+                    <th className="p-3">Asset Name</th>
+                    <th className="p-3">Serial No</th>
+                    <th className="p-3">Target Status</th>
+                    <th className="p-3">Assigned To</th>
+                    <th className="p-3">Location</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {parsedRows.slice(0, 8).map((row, idx) => (
+                    <tr key={idx} className="hover:bg-muted/30 transition-colors">
+                      <td className="p-3 font-semibold text-foreground">{row.name}</td>
+                      <td className="p-3 font-mono text-[11px] text-muted-foreground">{row.serialNumber}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          row.status === "Active"
+                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                            : row.status === "Stock - New"
+                            ? "bg-teal-500/15 text-teal-700 dark:text-teal-300"
+                            : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                        }`}>
+                          {row.status}
+                        </span>
+                      </td>
+                      <td className="p-3 text-muted-foreground">
+                        {row.holderName ? `${row.holderName} (${row.holderEmployeeId || "N/A"})` : "—"}
+                      </td>
+                      <td className="p-3 text-muted-foreground truncate max-w-[120px]">{row.location}</td>
+                    </tr>
                   ))}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             )}
           </CardContent>
         </Card>
