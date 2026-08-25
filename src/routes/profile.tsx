@@ -11,8 +11,7 @@ import {
   IdCard, 
   Lock, 
   Save,
-  KeyRound,
-  ShieldAlert
+  KeyRound
 } from "lucide-react";
 
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -81,7 +80,7 @@ function ProfilePage() {
         <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              {/* Avatar Icon */}
+              {/* Avatar */}
               <div className="relative grid size-16 place-items-center rounded-2xl bg-teal-600 text-white font-bold text-xl shadow-md shadow-teal-600/20 shrink-0">
                 {getInitials(currentUser?.fullName || "Ahmed Emam")}
                 <span className="absolute -bottom-1 -right-1 size-4 rounded-full bg-emerald-500 ring-2 ring-card" />
@@ -104,10 +103,10 @@ function ProfilePage() {
               </div>
             </div>
 
-            {/* Quick Status Tag */}
+            {/* Account Status Tag */}
             <div className="flex items-center gap-2 self-stretch sm:self-auto justify-end">
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="size-2 rounded-full bg-emerald-500" />
                 Active Account
               </span>
             </div>
@@ -117,14 +116,14 @@ function ProfilePage() {
         {/* 2. Main Layout Grid */}
         <div className="grid gap-6 lg:grid-cols-12">
           
-          {/* Profile Details Form (8 Cols) */}
+          {/* Form Card (8 Columns) */}
           <Card className="lg:col-span-8 border-border/80 shadow-sm">
             <CardHeader className="pb-3 border-b border-border/60">
               <CardTitle className="text-base flex items-center gap-2">
                 <User className="size-4.5 text-teal-600" /> Personal &amp; Contact Details
               </CardTitle>
               <CardDescription className="text-xs">
-                Update your contact information and display details.
+                Update your contact details and display information.
               </CardDescription>
             </CardHeader>
 
@@ -232,44 +231,44 @@ function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Account Security & Overview (4 Cols) */}
+          {/* Account Security Card (4 Columns) */}
           <Card className="lg:col-span-4 border-border/80 shadow-sm flex flex-col justify-between">
             <div>
               <CardHeader className="pb-3 border-b border-border/60">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <KeyRound className="size-4.5 text-teal-600" /> Account Security
+                  <KeyRound className="size-4.5 text-teal-600" /> Account Overview
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Authentication and session details.
+                  Session &amp; access status.
                 </CardDescription>
               </CardHeader>
               
               <CardContent className="space-y-4 pt-4 text-xs">
                 <div className="rounded-xl border border-border/60 bg-muted/30 p-3.5 space-y-2">
-                  <p className="font-semibold text-foreground">Session Status</p>
+                  <p className="font-semibold text-foreground">Session Privileges</p>
                   <p className="text-muted-foreground leading-relaxed">
-                    Signed in as <strong className="text-foreground">{currentUser?.fullName}</strong> with role-based access controls active.
+                    Signed in as <strong className="text-foreground">{currentUser?.fullName}</strong> with authenticated privileges.
                   </p>
                 </div>
 
                 <div className="rounded-xl border border-teal-500/20 bg-teal-500/[0.04] p-3.5 space-y-1">
                   <div className="flex items-center gap-2 text-teal-700 dark:text-teal-400 font-bold">
-                    <ShieldCheck className="size-4" /> RAMEDA Central Security
+                    <ShieldCheck className="size-4" /> RAMEDA Central
                   </div>
                   <p className="text-muted-foreground text-[11px] leading-normal mt-1">
-                    Your access privileges are assigned directly by the IT System Administrator based on organizational policy.
+                    Permissions and organizational roles are managed via the System Administrator.
                   </p>
                 </div>
               </CardContent>
             </div>
 
             <div className="p-4 border-t border-border/50 text-[11px] text-muted-foreground text-center">
-              Account registered &bull; Enterprise ID #{currentUser?.employeeId || "1000"}
+              Employee ID #{currentUser?.employeeId || "1000"}
             </div>
           </Card>
         </div>
 
-        {/* 3. Granted Permissions Section */}
+        {/* 3. Granted Permissions Card */}
         <Card className="border-border/80 shadow-sm">
           <CardHeader className="pb-3 border-b border-border/60">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
