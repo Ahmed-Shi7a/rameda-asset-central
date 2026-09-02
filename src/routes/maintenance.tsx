@@ -8,9 +8,10 @@ import {
   Layers, 
   Calendar,
   AlertTriangle,
-  FileText
+  FileText,
+  Loader2
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -58,6 +59,7 @@ function MaintenancePage() {
   const [deleteTarget, setDeleteTarget] = useState<MaintenanceRecord | null>(null);
   const [draft, setDraft] = useState({ assetName: "", date: "", description: "", cost: "" });
   const [assetQuery, setAssetQuery] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -85,7 +87,12 @@ function MaintenancePage() {
     );
   }
 
+  // 🔐 التحقق من صلاحية التعديل قبل فتح نافذة التعديل
   function openEdit(record: MaintenanceRecord) {
+    if (typeof can === "function" && !can("maintenance.edit")) {
+      toast.error("You do not have permission to edit maintenance records.");
+      return;
+    }
     setEditing(record);
     setDraft({
       assetName: record.assetName,
@@ -97,7 +104,15 @@ function MaintenancePage() {
     setOpen(true);
   }
 
-  function submit() {
+  // =========================================================================
+  // 1. UPDATE MAINTENANCE RECORD (API + MOCK FALLBACK)
+  // =========================================================================
+  async function submit() {
+    if (typeof can === "function" && !can("maintenance.edit")) {
+      toast.error("You do not have permission to update maintenance records.");
+      return;
+    }
+
     if (!draft.assetName.trim() || !draft.date) {
       toast.error("Asset name and maintenance date are required.");
       return;
@@ -107,20 +122,110 @@ function MaintenancePage() {
       toast.error("Cost must be a valid numeric amount.");
       return;
     }
+    
     const payload = {
       assetName: draft.assetName.trim(),
       date: draft.date,
       description: draft.description.trim(),
       cost,
     };
+
+    setIsProcessing(true);
+
     if (editing) {
-      if (typeof updateMaintenance === "function") {
-        updateMaintenance({ ...editing, ...payload });
+      /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT THIS BLOCK FOR REAL API INTEGRATION 🚨🚨🚨 */
+      /*
+      try {
+        const response = await fetch(`https://api.yourdomain.com/api/maintenance/${editing.id}`, {
+          method: "PUT",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("token")}`
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) throw new Error("Failed to update maintenance record.");
+
+        const updatedRecord = await response.json();
+        if (typeof updateMaintenance === "function") {
+          updateMaintenance(updatedRecord);
+        }
+
         toast.success("Maintenance record updated successfully.");
+        setOpen(false);
+      } catch (error: any) {
+        toast.error(error.message || "Failed to update record.");
+      } finally {
+        setIsProcessing(false);
       }
+      return;
+      */
+
+      /* 🟢🟢🟢 FRONTEND MOCK MODE 🟢🟢🟢 */
+      setTimeout(() => {
+        if (typeof updateMaintenance === "function") {
+          updateMaintenance({ ...editing, ...payload });
+          toast.success("Maintenance record updated successfully. (Mock Mode)");
+        }
+        setOpen(false);
+        setIsProcessing(false);
+      }, 500);
     }
-    setOpen(false);
   }
+
+  // =========================================================================
+  // 2. DELETE MAINTENANCE RECORD (API + MOCK FALLBACK)
+  // =========================================================================
+  async function handleDeleteRecord() {
+    if (typeof can === "function" && !can("maintenance.delete")) {
+      toast.error("You do not have permission to delete maintenance records.");
+      setDeleteTarget(null);
+      return;
+    }
+
+    if (!deleteTarget) return;
+
+    setIsProcessing(true);
+
+    /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT THIS BLOCK FOR REAL API 🚨🚨🚨 */
+    /*
+    try {
+      const response = await fetch(`https://api.yourdomain.com/api/maintenance/${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` },
+      });
+
+      if (!response.ok) throw new Error("Failed to delete maintenance record.");
+
+      if (typeof deleteMaintenance === "function") {
+        deleteMaintenance(deleteTarget.id);
+      }
+
+      toast.success("Maintenance record deleted.");
+      setDeleteTarget(null);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete record.");
+    } finally {
+      setIsProcessing(false);
+    }
+    return;
+    */
+
+    /* 🟢🟢🟢 FRONTEND MOCK MODE 🟢🟢🟢 */
+    setTimeout(() => {
+      if (typeof deleteMaintenance === "function") {
+        deleteMaintenance(deleteTarget.id);
+        toast.success("Maintenance record deleted. (Mock Mode)");
+      }
+      setDeleteTarget(null);
+      setIsProcessing(false);
+    }, 400);
+  }
+
+  // التحقق من الصلاحيات للعرض
+  const canEdit = typeof can !== "function" || can("maintenance.edit");
+  const canDelete = typeof can !== "function" || can("maintenance.delete");
 
   return (
     <AppLayout
@@ -283,30 +388,32 @@ function MaintenancePage() {
                         )}
                       </td>
 
-                      {/* Calm and Elegant Action Buttons */}
+                      {/* Action Buttons */}
                       <td className="p-3.5 text-center">
                         <div className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/30 p-0.5 shadow-sm">
-                          
-                          {/* Edit Action */}
-                          <button
-                            type="button"
-                            title="Edit Maintenance Record"
-                            onClick={() => openEdit(m)}
-                            className="size-7 rounded-md flex items-center justify-center text-muted-foreground/70 hover:text-teal-600 hover:bg-teal-500/10 dark:hover:text-teal-400 dark:hover:bg-teal-500/15 transition-colors"
-                          >
-                            <Pencil className="size-3.5" />
-                          </button>
+                          {/* 🔐 زر التعديل مرتبط بصلاحية maintenance.edit */}
+                          {canEdit && (
+                            <button
+                              type="button"
+                              title="Edit Maintenance Record"
+                              onClick={() => openEdit(m)}
+                              className="size-7 rounded-md flex items-center justify-center text-muted-foreground/70 hover:text-teal-600 hover:bg-teal-500/10 dark:hover:text-teal-400 dark:hover:bg-teal-500/15 transition-colors"
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+                          )}
 
-                          {/* Delete Action */}
-                          <button
-                            type="button"
-                            title="Delete Record"
-                            onClick={() => setDeleteTarget(m)}
-                            className="size-7 rounded-md flex items-center justify-center text-muted-foreground/70 hover:text-rose-600 hover:bg-rose-500/10 dark:hover:text-rose-400 dark:hover:bg-rose-500/15 transition-colors"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-
+                          {/* 🔐 زر الحذف مرتبط بصلاحية maintenance.delete */}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              title="Delete Record"
+                              onClick={() => setDeleteTarget(m)}
+                              className="size-7 rounded-md flex items-center justify-center text-muted-foreground/70 hover:text-rose-600 hover:bg-rose-500/10 dark:hover:text-rose-400 dark:hover:bg-rose-500/15 transition-colors"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -319,7 +426,7 @@ function MaintenancePage() {
 
       </div>
 
-      {/* نافذة التعديل */}
+      {/* Edit Modal */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg border-border/80 shadow-2xl">
           <DialogHeader className="pb-2 border-b border-border/60">
@@ -333,13 +440,13 @@ function MaintenancePage() {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* Asset Name */}
             <div className="space-y-2">
               <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                 Asset Name *
               </Label>
               <Input
                 placeholder="Asset name..."
+                disabled={isProcessing}
                 value={assetQuery}
                 onChange={(e) => {
                   setAssetQuery(e.target.value);
@@ -368,26 +475,26 @@ function MaintenancePage() {
               </div>
             </div>
 
-            {/* Date */}
             <div className="space-y-2">
               <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                 Maintenance Date *
               </Label>
               <Input
                 type="date"
+                disabled={isProcessing}
                 value={draft.date}
                 onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value }))}
                 className="text-xs h-10"
               />
             </div>
 
-            {/* Issue Description */}
             <div className="space-y-2">
               <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                 Issue Description / Work Done
               </Label>
               <Textarea
                 rows={3}
+                disabled={isProcessing}
                 placeholder="e.g. Screen replacement, OS reload, RAM upgrade..."
                 value={draft.description}
                 onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
@@ -395,13 +502,13 @@ function MaintenancePage() {
               />
             </div>
 
-            {/* Cost (EGP) */}
             <div className="space-y-2">
               <Label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                 Repair Cost (EGP) — Optional
               </Label>
               <Input
                 inputMode="numeric"
+                disabled={isProcessing}
                 placeholder="e.g. 1500"
                 value={draft.cost}
                 onChange={(e) => setDraft((d) => ({ ...d, cost: e.target.value }))}
@@ -411,21 +518,22 @@ function MaintenancePage() {
           </div>
 
           <DialogFooter className="pt-3 border-t border-border/60 gap-2">
-            <Button variant="secondary" size="sm" onClick={() => setOpen(false)}>
+            <Button variant="secondary" size="sm" onClick={() => setOpen(false)} disabled={isProcessing}>
               Cancel
             </Button>
             <Button 
               onClick={submit} 
               size="sm"
+              disabled={isProcessing}
               className="bg-teal-600 hover:bg-teal-700 text-white font-medium shadow-sm"
             >
-              Save Changes
+              {isProcessing ? <Loader2 className="size-4 animate-spin" /> : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* نافذة تأكيد الحذف */}
+      {/* Delete Confirmation Modal */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent className="sm:max-w-md border-border/80 shadow-2xl">
           <DialogHeader>
@@ -437,22 +545,17 @@ function MaintenancePage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:justify-end pt-3 border-t border-border/60">
-            <Button variant="secondary" size="sm" onClick={() => setDeleteTarget(null)}>
+            <Button variant="secondary" size="sm" onClick={() => setDeleteTarget(null)} disabled={isProcessing}>
               Cancel
             </Button>
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => {
-                if (deleteTarget && typeof deleteMaintenance === "function") {
-                  deleteMaintenance(deleteTarget.id);
-                  setDeleteTarget(null);
-                  toast.success("Maintenance record deleted.");
-                }
-              }}
+              disabled={isProcessing}
+              onClick={handleDeleteRecord}
               className="bg-rose-600 hover:bg-rose-700 text-white font-medium"
             >
-              Delete Record
+              {isProcessing ? <Loader2 className="size-4 animate-spin" /> : "Delete Record"}
             </Button>
           </DialogFooter>
         </DialogContent>

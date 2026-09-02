@@ -76,6 +76,7 @@ export function ImportAssetsPage() {
   const [parsedRows, setParsedRows] = useState<Partial<Asset>[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Read file locally for PREVIEW only
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -139,7 +140,7 @@ export function ImportAssetsPage() {
         }
 
         setParsedRows(data);
-        toast.success(`Successfully parsed ${data.length} assets from file.`);
+        toast.success(`Successfully parsed ${data.length} assets for preview.`);
       } catch (err) {
         toast.error("Failed to parse file format. Please use a valid CSV.");
       } finally {
@@ -150,15 +151,61 @@ export function ImportAssetsPage() {
     reader.readAsText(selectedFile);
   };
 
-  const handleBulkImport = () => {
-    if (parsedRows.length === 0) {
+  async function handleBulkImport() {
+    if (!file && parsedRows.length === 0) {
       toast.error("No valid asset records to import.");
       return;
     }
 
     setIsProcessing(true);
-    let count = 0;
 
+    /* ========================================================================= */
+    /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT THIS BLOCK FOR REAL API INTEGRATION 🚨🚨🚨 */
+    /* ========================================================================= */
+    /*
+    try {
+      if (!file) throw new Error("No file selected.");
+
+      const formData = new FormData();
+      formData.append("file", file); // Send the actual Excel/CSV file
+      formData.append("importMode", selectedMode); // Let backend know the selected mode
+
+      // TODO: REPLACE URL WITH REAL DJANGO BULK IMPORT ENDPOINT
+      const response = await fetch("https://api.yourdomain.com/api/assets/bulk-import", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+          // NOTE: Do NOT set "Content-Type" manually when sending FormData, the browser sets it with the correct boundary automatically.
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to import file.");
+      }
+
+      const result = await response.json();
+      toast.success(`Successfully imported ${result.importedCount || parsedRows.length} assets!`);
+      
+      // Reset Form
+      setFile(null);
+      setParsedRows([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error: any) {
+      toast.error(error.message || "Import failed. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+    return; // 🛑 IMPORTANT: RETURN HERE TO PREVENT RUNNING THE MOCK CODE BELOW 🛑
+    */
+    /* ========================================================================= */
+
+
+    /* ========================================================================= */
+    /* 🟢🟢🟢 FRONTEND MOCK MODE (REMOVE WHEN BACKEND IS READY) 🟢🟢🟢 */
+    /* ========================================================================= */
+    let count = 0;
     parsedRows.forEach((assetData) => {
       if (typeof addAsset === "function") {
         addAsset(assetData);
@@ -167,13 +214,13 @@ export function ImportAssetsPage() {
     });
 
     setTimeout(() => {
-      toast.success(`Successfully imported ${count || parsedRows.length} assets into inventory!`);
+      toast.success(`Successfully imported ${count || parsedRows.length} assets into inventory! (Mock Mode)`);
       setFile(null);
       setParsedRows([]);
       if (fileInputRef.current) fileInputRef.current.value = "";
       setIsProcessing(false);
-    }, 500);
-  };
+    }, 800);
+  }
 
   return (
     <AppLayout title="Import Assets" description="Upload and validate bulk asset datasets directly into the inventory system.">

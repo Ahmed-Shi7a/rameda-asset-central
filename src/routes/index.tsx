@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { 
   Boxes, 
   CheckCircle2, 
@@ -47,39 +48,62 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function DashboardPage() {
-  const { assets = [], users = [], activities = [] } = useApp() as any;
+  const { assets = [], users = [], activities = [], currentUser, isAdmin } = useApp() as any;
+  const [realStats, setRealStats] = useState<any>(null);
 
-  // الحسابات الإحصائية
-  const totalAssets = assets.length || 28;
-  const activeAssets = assets.filter((a: any) => a.status === "Active" || a.status === "In-Use").length || 9;
-  const stockAssets = assets.filter((a: any) => a.status === "Stock - New" || a.status === "Stock - Used" || a.status === "Stock").length || 9;
-  const underMaintenance = assets.filter((a: any) => a.status === "Under Maintenance").length || 10;
-  const scrappedAssets = assets.filter((a: any) => a.status === "Scrapped").length || 0;
-  const totalUsers = users.length || 6;
+  /* ========================================================================= */
+  /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT THIS BLOCK TO FETCH REAL ANALYTICS 🚨🚨🚨 */
+  /* ========================================================================= */
+  /*
+  useEffect(() => {
+    async function fetchDashboardStats() {
+      try {
+        const res = await fetch("https://api.yourdomain.com/api/dashboard/summary", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        });
+        if (!res.ok) throw new Error("Failed to fetch dashboard stats");
+        const data = await res.json();
+        setRealStats(data);
+      } catch (error) {
+        console.error("Dashboard fetch error:", error);
+      }
+    }
+    fetchDashboardStats();
+  }, []);
+  */
+  /* ========================================================================= */
 
-  // بيانات مخطط الحالة (Donut Chart)
-  const statusChartData = [
+  // 1. Metric Cards Data
+  const totalAssets = realStats?.totalAssets ?? (assets.length || 28);
+  const activeAssets = realStats?.activeAssets ?? (assets.filter((a: any) => a.status === "Active" || a.status === "In-Use").length || 9);
+  const stockAssets = realStats?.stockAssets ?? (assets.filter((a: any) => a.status === "Stock - New" || a.status === "Stock - Used" || a.status === "Stock").length || 9);
+  const underMaintenance = realStats?.underMaintenance ?? (assets.filter((a: any) => a.status === "Under Maintenance").length || 10);
+  const scrappedAssets = realStats?.scrappedAssets ?? (assets.filter((a: any) => a.status === "Scrapped").length || 0);
+  const totalUsers = realStats?.totalUsers ?? (users.length || 6);
+
+  // 2. Status Chart Data
+  const statusChartData = realStats?.statusChartData ?? [
     { name: "Active", value: activeAssets, color: STATUS_COLORS.Active },
     { name: "Stock", value: stockAssets, color: STATUS_COLORS.Stock },
     { name: "Under Maintenance", value: underMaintenance, color: STATUS_COLORS["Under Maintenance"] },
     { name: "Scrapped", value: scrappedAssets, color: STATUS_COLORS.Scrapped },
   ];
 
-  // بيانات مخطط الأنواع (Bar Chart)
+  // 3. Types Bar Chart Data
   const typesList = ["Laptop", "Desktop", "Printer", "Monitor", "Scanner", "Server", "Tablet"];
-  const typeChartData = typesList.map((t) => ({
+  const typeChartData = realStats?.typeChartData ?? typesList.map((t) => ({
     name: t,
     count: assets.filter((a: any) => a.deviceType === t || a.name?.toLowerCase().includes(t.toLowerCase())).length || 4,
   }));
 
-  // بيانات مخطط الفروع (Locations)
-  const locationChartData = LOCATIONS.slice(0, 6).map((loc) => ({
+  // 4. Locations Chart Data
+  const locationChartData = realStats?.locationChartData ?? LOCATIONS.slice(0, 6).map((loc) => ({
     name: loc.replace(" Scientific Office", "").replace(" (Headquarters)", " HQ"),
     assets: assets.filter((a: any) => a.location === loc).length || Math.floor(Math.random() * 4) + 1,
   }));
 
-  // بيانات مخطط الصيانة الشهري (Maintenance Trend)
-  const maintenanceTrend = [
+  // 5. Maintenance Trend Data
+  const maintenanceTrend = realStats?.maintenanceTrend ?? [
     { month: "Jan", pending: 2, completed: 5 },
     { month: "Feb", pending: 4, completed: 8 },
     { month: "Mar", pending: 3, completed: 6 },
@@ -88,56 +112,21 @@ export function DashboardPage() {
     { month: "Jun", pending: underMaintenance, completed: 11 },
   ];
 
-  // سجل العمليات والأنشطة الأحدث
+  // 6. Recent Activities with Role-based Filtering (Admin sees all, User sees only their actions)
   const defaultActivities = [
-    {
-      id: "act-1",
-      user: "Ahmed Emam",
-      action: "Created Asset",
-      type: "create",
-      target: "Dell Latitude 5420 (SN-981240)",
-      location: "HQ (Headquarters)",
-      time: "10 minutes ago",
-    },
-    {
-      id: "act-2",
-      user: "Sara Adel",
-      action: "Assigned Asset",
-      type: "assign",
-      target: "HP EliteBook 840 (SN-482019)",
-      location: "Alexandria Scientific Office",
-      time: "45 minutes ago",
-    },
-    {
-      id: "act-3",
-      user: "Khaled Nabil",
-      action: "Sent to Maintenance",
-      type: "maintenance",
-      target: "Lenovo LaserJet Pro (SN-50293)",
-      location: "Mansoura Scientific Office",
-      time: "2 hours ago",
-    },
-    {
-      id: "act-4",
-      user: "Ahmed Emam",
-      action: "Bulk CSV Import",
-      type: "import",
-      target: "Batch inserted 14 New Stock Units",
-      location: "HQ Warehouse",
-      time: "5 hours ago",
-    },
-    {
-      id: "act-5",
-      user: "Youssef Hany",
-      action: "Updated Specs",
-      type: "update",
-      target: "Apple Studio Display 27 (SN-50324)",
-      location: "Tanta Scientific Office",
-      time: "Yesterday at 4:30 PM",
-    },
+    { id: "act-1", user: "Ahmed Emam", action: "Created Asset", type: "create", target: "Dell Latitude 5420 (SN-981240)", location: "HQ (Headquarters)", time: "10 minutes ago" },
+    { id: "act-2", user: "Sara Adel", action: "Assigned Asset", type: "assign", target: "HP EliteBook 840 (SN-482019)", location: "Alexandria Scientific Office", time: "45 minutes ago" },
+    { id: "act-3", user: "Khaled Nabil", action: "Sent to Maintenance", type: "maintenance", target: "Lenovo LaserJet Pro (SN-50293)", location: "Mansoura Scientific Office", time: "2 hours ago" },
+    { id: "act-4", user: "Ahmed Emam", action: "Bulk CSV Import", type: "import", target: "Batch inserted 14 New Stock Units", location: "HQ Warehouse", time: "5 hours ago" },
+    { id: "act-5", user: "Youssef Hany", action: "Updated Specs", type: "update", target: "Apple Studio Display 27 (SN-50324)", location: "Tanta Scientific Office", time: "Yesterday at 4:30 PM" },
   ];
 
-  const recentActivities = activities.length > 0 ? activities : defaultActivities;
+  const rawActivities = realStats?.recentActivities ?? (activities.length > 0 ? activities : defaultActivities);
+  
+  // فلترة السجلات بناءً على الصلاحية (الأدمن يشاهد الكل، اليوزر يشاهد عملياته الخاصة فقط)
+  const recentActivities = isAdmin 
+    ? rawActivities 
+    : rawActivities.filter((act: any) => act.user?.trim().toLowerCase() === currentUser?.fullName?.trim().toLowerCase());
 
   return (
     <AppLayout 
@@ -146,7 +135,7 @@ export function DashboardPage() {
     >
       <div className="space-y-6">
         
-        {/* 1. Top 6 Metric Cards */}
+        {/* Metric Cards */}
         <div className="grid gap-3.5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
           <Card className="border-border/80 shadow-sm hover:border-blue-500/40 transition-all">
             <CardContent className="p-4 flex items-center justify-between">
@@ -221,10 +210,9 @@ export function DashboardPage() {
           </Card>
         </div>
 
-        {/* 2. Middle Charts Section (Status Donut & Assets by Type) */}
+        {/* Charts: Status & Types */}
         <div className="grid gap-6 lg:grid-cols-12">
           
-          {/* Asset Status Donut Chart */}
           <Card className="lg:col-span-5 border-border/80 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold">Asset Status</CardTitle>
@@ -251,7 +239,6 @@ export function DashboardPage() {
                 </PieChart>
               </ResponsiveContainer>
               
-              {/* Custom Legend */}
               <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground mt-2">
                 {statusChartData.map((item) => (
                   <div key={item.name} className="flex items-center gap-1.5">
@@ -263,7 +250,6 @@ export function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Assets by Type Bar Chart */}
           <Card className="lg:col-span-7 border-border/80 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold">Assets by Type</CardTitle>
@@ -294,10 +280,9 @@ export function DashboardPage() {
           </Card>
         </div>
 
-        {/* 3. Bottom Charts Section (Locations & Maintenance Trend) */}
+        {/* Charts: Locations & Maintenance */}
         <div className="grid gap-6 lg:grid-cols-12">
           
-          {/* Assets by Location */}
           <Card className="lg:col-span-6 border-border/80 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold">Assets by Location</CardTitle>
@@ -315,7 +300,6 @@ export function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Maintenance Overview */}
           <Card className="lg:col-span-6 border-border/80 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold">Maintenance Overview</CardTitle>
@@ -336,7 +320,7 @@ export function DashboardPage() {
           </Card>
         </div>
 
-        {/* 4. Recent Operations & User Activity Log */}
+        {/* Audit Log */}
         <Card className="border-border/80 shadow-sm flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-border/60">
             <div>
@@ -344,14 +328,17 @@ export function DashboardPage() {
                 <Clock className="size-4.5 text-teal-600" /> Recent Operations &amp; Audit Log
               </CardTitle>
               <CardDescription className="text-xs">
-                Real-time log of user operations, additions, assignments, and hardware updates.
+                {isAdmin ? "Real-time log of company-wide user operations, additions, and updates." : "Your personal recent operations and activity log."}
               </CardDescription>
             </div>
-            <Button asChild variant="ghost" size="sm" className="text-teal-600 hover:text-teal-700 text-xs gap-1">
-              <Link to="/assets">
-                Manage Assets <ArrowRight className="size-3.5" />
-              </Link>
-            </Button>
+            {/* 🔐 زر Manage Assets يظهر للأدمن فقط لحل الثغرة */}
+            {isAdmin && (
+              <Button asChild variant="ghost" size="sm" className="text-teal-600 hover:text-teal-700 text-xs gap-1">
+                <Link to="/assets">
+                  Manage Assets <ArrowRight className="size-3.5" />
+                </Link>
+              </Button>
+            )}
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
@@ -365,56 +352,59 @@ export function DashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {recentActivities.map((act: any) => (
-                  <tr key={act.id} className="hover:bg-muted/30 transition-colors">
-                    {/* User info */}
-                    <td className="p-3.5 font-semibold text-foreground">
-                      <div className="flex items-center gap-2">
-                        <div className="size-6 rounded-full bg-teal-500/10 text-teal-600 flex items-center justify-center text-[10px] font-bold">
-                          {act.user.split(" ").map((n: string) => n[0]).join("")}
-                        </div>
-                        <span>{act.user}</span>
-                      </div>
-                    </td>
-
-                    {/* Action badge */}
-                    <td className="p-3.5">
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                        act.type === "create"
-                          ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                          : act.type === "assign"
-                          ? "bg-blue-500/15 text-blue-700 dark:text-blue-300"
-                          : act.type === "maintenance"
-                          ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                          : act.type === "import"
-                          ? "bg-purple-500/15 text-purple-700 dark:text-purple-300"
-                          : "bg-teal-500/15 text-teal-700 dark:text-teal-300"
-                      }`}>
-                        {act.type === "create" && <PlusCircle className="size-3" />}
-                        {act.type === "assign" && <UserCheck className="size-3" />}
-                        {act.type === "maintenance" && <Wrench className="size-3" />}
-                        {act.type === "import" && <UploadCloud className="size-3" />}
-                        {act.type === "update" && <FileEdit className="size-3" />}
-                        {act.action}
-                      </span>
-                    </td>
-
-                    {/* Target Asset */}
-                    <td className="p-3.5 text-foreground font-medium truncate max-w-[240px]">
-                      {act.target}
-                    </td>
-
-                    {/* Location */}
-                    <td className="p-3.5 text-muted-foreground truncate max-w-[160px]">
-                      {act.location}
-                    </td>
-
-                    {/* Timestamp */}
-                    <td className="p-3.5 text-right font-mono text-[11px] text-muted-foreground">
-                      {act.time}
+                {recentActivities.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                      No recent operations recorded for your account.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  recentActivities.map((act: any) => (
+                    <tr key={act.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="p-3.5 font-semibold text-foreground">
+                        <div className="flex items-center gap-2">
+                          <div className="size-6 rounded-full bg-teal-500/10 text-teal-600 flex items-center justify-center text-[10px] font-bold">
+                            {act.user.split(" ").map((n: string) => n[0]).join("")}
+                          </div>
+                          <span>{act.user}</span>
+                        </div>
+                      </td>
+
+                      <td className="p-3.5">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          act.type === "create"
+                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                            : act.type === "assign"
+                            ? "bg-blue-500/15 text-blue-700 dark:text-blue-300"
+                            : act.type === "maintenance"
+                            ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                            : act.type === "import"
+                            ? "bg-purple-500/15 text-purple-700 dark:text-purple-300"
+                            : "bg-teal-500/15 text-teal-700 dark:text-teal-300"
+                        }`}>
+                          {act.type === "create" && <PlusCircle className="size-3" />}
+                          {act.type === "assign" && <UserCheck className="size-3" />}
+                          {act.type === "maintenance" && <Wrench className="size-3" />}
+                          {act.type === "import" && <UploadCloud className="size-3" />}
+                          {act.type === "update" && <FileEdit className="size-3" />}
+                          {act.action}
+                        </span>
+                      </td>
+
+                      <td className="p-3.5 text-foreground font-medium truncate max-w-[240px]">
+                        {act.target}
+                      </td>
+
+                      <td className="p-3.5 text-muted-foreground truncate max-w-[160px]">
+                        {act.location}
+                      </td>
+
+                      <td className="p-3.5 text-right font-mono text-[11px] text-muted-foreground">
+                        {act.time}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </CardContent>

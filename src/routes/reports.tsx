@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   FileSpreadsheet, 
   FileText, 
@@ -9,7 +9,8 @@ import {
   Package, 
   Wrench,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -42,9 +43,34 @@ export const Route = createFileRoute("/reports")({
 function ReportsPage() {
   const { assets = [], maintenance = [], can } = useApp() as any;
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [realStats, setRealStats] = useState<any>(null);
+  
+  // حالة التحميل أثناء التصدير
+  const [exportingFormat, setExportingFormat] = useState<"pdf" | "excel" | "csv" | null>(null);
 
   const exportRows: Asset[] =
     statusFilter === "all" ? assets : assets.filter((a: any) => a.status === statusFilter);
+
+  /* ========================================================================= */
+  /* 🚨 FETCH REAL ANALYTICS FROM BACKEND 🚨 */
+  /* ========================================================================= */
+  /*
+  useEffect(() => {
+    async function fetchReportAnalytics() {
+      try {
+        const res = await fetch("https://api.yourdomain.com/api/reports/analytics", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        });
+        if (!res.ok) throw new Error("Failed to fetch report analytics");
+        const data = await res.json();
+        setRealStats(data);
+      } catch (error) {
+        console.error("Reports fetch error:", error);
+      }
+    }
+    fetchReportAnalytics();
+  }, []);
+  */
 
   if (typeof can === "function" && !can("reports.view")) {
     return (
@@ -54,62 +80,97 @@ function ReportsPage() {
     );
   }
 
-  // الحسابات الإحصائية
-  const totalCost = maintenance.reduce((sum: number, m: any) => sum + (m.cost ?? 0), 0);
-  const stockAssetsCount = assets.filter(
+  /* ========================================================================= */
+  /* 🟢 FRONTEND MOCK MODE CALCULATIONS 🟢 */
+  /* ========================================================================= */
+  const localTotalCost = maintenance.reduce((sum: number, m: any) => sum + (m.cost ?? 0), 0);
+  const localStockCount = assets.filter(
     (a: any) => a.status === "Stock" || a.status === "Stock - New" || a.status === "Stock - Used"
   ).length;
-  const activeAssetsCount = assets.filter((a: any) => a.status === "Active" || a.status === "In-Use").length;
+  const localActiveCount = assets.filter((a: any) => a.status === "Active" || a.status === "In-Use").length;
 
+  const displayTotalCost = realStats?.totalCost ?? localTotalCost;
+  const displayStockCount = realStats?.stockAssetsCount ?? localStockCount;
+  const displayActiveCount = realStats?.activeAssetsCount ?? localActiveCount;
+
+  const displayStatusData = realStats?.statusData ?? statusData(assets);
+  const displayLocationData = realStats?.locationData ?? locationData(assets);
+  const displayTypeData = realStats?.typeData ?? typeData(assets);
+  const displayMaintenanceCost = realStats?.maintenanceCostMonthly ?? maintenanceCostMonthly(maintenance);
+
+  // دالة التصدير للـ CSV من الفرونت إند
   function exportAssetsCsv(rows: Asset[], status: string) {
     if (rows.length === 0) {
       toast.error("No assets available to export.");
       return;
     }
-
-    const headers = [
-      "Asset ID",
-      "Asset Name",
-      "Device Type",
-      "Brand",
-      "Model",
-      "Serial Number",
-      "Status",
-      "Location",
-      "Assigned To",
-      "Delivery Date",
-      "Warranty (Months)",
-    ];
-
+    const headers = ["Asset ID", "Asset Name", "Device Type", "Brand", "Model", "Serial Number", "Status", "Location", "Assigned To", "Delivery Date"];
     const csvContentRows = rows.map((a: any) => [
-      `"${a.id || a.assetId || ""}"`,
-      `"${a.name || a.assetName || ""}"`,
-      `"${a.deviceType || a.hardwareType || a.type || a.category || ""}"`,
-      `"${a.brand || ""}"`,
-      `"${a.model || ""}"`,
-      `"${a.serialNumber || a.serial || ""}"`,
-      `"${a.status || ""}"`,
-      `"${a.location || ""}"`,
-      `"${a.holderName || a.assignedEmployee || a.assignedTo || a.user || "Unassigned"}"`,
-      `"${a.deliveryDate || a.purchaseDate || ""}"`,
-      `"${a.warranty || a.warrantyMonths || a.warrantyPeriod || ""}"`,
+      `"${a.id || ""}"`, `"${a.name || ""}"`, `"${a.deviceType || ""}"`, `"${a.brand || ""}"`, `"${a.model || ""}"`, `"${a.serialNumber || ""}"`, `"${a.status || ""}"`, `"${a.location || ""}"`, `"${a.holderName || "Unassigned"}"`, `"${a.deliveryDate || ""}"`
     ]);
-
     const csvString = [headers.join(","), ...csvContentRows.map((r) => r.join(","))].join("\n");
     const blob = new Blob(["\uFEFF" + csvString], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute(
-      "download",
-      `RAMEDA_Assets_Report_${status}_${new Date().toISOString().slice(0, 10)}.csv`
-    );
+    link.setAttribute("download", `RAMEDA_Assets_${status}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  }
 
-    toast.success(`CSV report exported (${rows.length} assets)`);
+  /* ========================================================================= */
+  /* 🛡️ نظام التصدير المزدوج (الباك إند أولاً، ثم الفرونت إند كخطة بديلة) 🛡️ */
+  /* ========================================================================= */
+  async function handleExport(format: "pdf" | "excel" | "csv") {
+    if (exportRows.length === 0) {
+      toast.error("No data available to export.");
+      return;
+    }
+
+    setExportingFormat(format);
+
+    try {
+      /* 🚨 محاولة تصدير الملف من الباك إند (لو مبرمجينها) 🚨 */
+      // TODO: BACKEND TEAM - REPLACE URL WITH REAL EXPORT ENDPOINT
+      const response = await fetch(`https://api.yourdomain.com/api/export?format=${format}&status=${statusFilter}`, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+      });
+
+      if (!response.ok) {
+        throw new Error("Backend export not available or failed."); // هيحولنا للخطوة اللي بعدها
+      }
+
+      // لو الباك إند رد بملف، هنحمله للمستخدم
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `RAMEDA_Report_${format}.${format === "excel" ? "xlsx" : format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success(`${format.toUpperCase()} exported from server successfully!`);
+
+    } catch (error) {
+      /* 🟢 الخطة البديلة: لو الباك إند فشل، الفرونت إند هيطبع الملف فوراً 🟢 */
+      console.log(`Backend export failed, falling back to frontend for ${format}...`);
+      
+      if (format === "pdf") {
+        exportAssetsPdf(exportRows, statusFilter);
+      } else if (format === "excel") {
+        exportAssetsExcel(exportRows, statusFilter);
+      } else if (format === "csv") {
+        exportAssetsCsv(exportRows, statusFilter);
+      }
+
+      toast.success(`${format.toUpperCase()} generated locally successfully!`);
+    } finally {
+      setExportingFormat(null);
+    }
   }
 
   return (
@@ -119,7 +180,6 @@ function ReportsPage() {
       actions={
         typeof can === "function" && can("reports.export") ? (
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* فلتر الحالة قبل التصدير */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="h-9 w-[150px] bg-muted/40 border-border/80 text-xs shadow-sm" aria-label="Status filter">
                 <SelectValue placeholder="All Statuses" />
@@ -134,43 +194,42 @@ function ReportsPage() {
               </SelectContent>
             </Select>
 
-            {/* أزرار التصدير الملونة */}
+            {/* أزرار التصدير الذكية (تدمج بين الباك والفرونت) */}
             <div className="flex items-center gap-1.5 rounded-xl border border-border/80 bg-card p-1 shadow-sm">
-              {/* PDF */}
+              
+              {/* PDF Button */}
               <button
                 type="button"
-                onClick={() => {
-                  exportAssetsPdf(exportRows, statusFilter);
-                  toast.success(`PDF report generated (${exportRows.length} assets)`);
-                }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 hover:bg-rose-600 hover:text-white transition-all duration-150 active:scale-95"
+                disabled={exportingFormat !== null}
+                onClick={() => handleExport("pdf")}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 hover:bg-rose-600 hover:text-white transition-all duration-150 active:scale-95 disabled:opacity-50"
               >
-                <FileText className="size-3.5" />
+                {exportingFormat === "pdf" ? <Loader2 className="size-3.5 animate-spin" /> : <FileText className="size-3.5" />}
                 <span>PDF</span>
               </button>
 
-              {/* Excel */}
+              {/* Excel Button */}
               <button
                 type="button"
-                onClick={() => {
-                  exportAssetsExcel(exportRows, statusFilter);
-                  toast.success(`Excel report exported (${exportRows.length} assets)`);
-                }}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600 hover:text-white transition-all duration-150 active:scale-95"
+                disabled={exportingFormat !== null}
+                onClick={() => handleExport("excel")}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600 hover:text-white transition-all duration-150 active:scale-95 disabled:opacity-50"
               >
-                <FileSpreadsheet className="size-3.5" />
+                {exportingFormat === "excel" ? <Loader2 className="size-3.5 animate-spin" /> : <FileSpreadsheet className="size-3.5" />}
                 <span>Excel</span>
               </button>
 
-              {/* CSV */}
+              {/* CSV Button */}
               <button
                 type="button"
-                onClick={() => exportAssetsCsv(exportRows, statusFilter)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 hover:bg-sky-600 hover:text-white transition-all duration-150 active:scale-95"
+                disabled={exportingFormat !== null}
+                onClick={() => handleExport("csv")}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 hover:bg-sky-600 hover:text-white transition-all duration-150 active:scale-95 disabled:opacity-50"
               >
-                <Download className="size-3.5" />
+                {exportingFormat === "csv" ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
                 <span>CSV</span>
               </button>
+
             </div>
           </div>
         ) : null
@@ -192,7 +251,7 @@ function ReportsPage() {
             <CardContent>
               <div className="text-2xl font-bold text-foreground">{assets.length}</div>
               <p className="text-[11px] text-muted-foreground mt-1">
-                {activeAssetsCount} active units deployed
+                {displayActiveCount} active units deployed
               </p>
             </CardContent>
           </Card>
@@ -207,7 +266,7 @@ function ReportsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{stockAssetsCount}</div>
+              <div className="text-2xl font-bold text-foreground">{displayStockCount}</div>
               <p className="text-[11px] text-muted-foreground mt-1">Available for assignment</p>
             </CardContent>
           </Card>
@@ -238,7 +297,7 @@ function ReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">
-                EGP {totalCost.toLocaleString()}
+                EGP {displayTotalCost.toLocaleString()}
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">Total hardware repair cost</p>
             </CardContent>
@@ -248,21 +307,21 @@ function ReportsPage() {
         {/* 2. Charts Section */}
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-2xl border border-border/80 bg-card p-1 shadow-sm overflow-hidden">
-            <DonutChartCard title="Asset Status Breakdown" data={statusData(assets)} />
+            <DonutChartCard title="Asset Status Breakdown" data={displayStatusData} />
           </div>
 
           <div className="rounded-2xl border border-border/80 bg-card p-1 shadow-sm overflow-hidden">
-            <BarChartCard title="Assets by Location" data={locationData(assets)} />
+            <BarChartCard title="Assets by Location" data={displayLocationData} />
           </div>
 
           <div className="rounded-2xl border border-border/80 bg-card p-1 shadow-sm overflow-hidden">
-            <BarChartCard title="Assets by Hardware Type" data={typeData(assets)} color="var(--chart-3)" />
+            <BarChartCard title="Assets by Hardware Type" data={displayTypeData} color="var(--chart-3)" />
           </div>
 
           <div className="rounded-2xl border border-border/80 bg-card p-1 shadow-sm overflow-hidden">
             <LineChartCard
               title="Maintenance Cost Over Time (EGP)"
-              data={maintenanceCostMonthly(maintenance)}
+              data={displayMaintenanceCost}
             />
           </div>
         </div>

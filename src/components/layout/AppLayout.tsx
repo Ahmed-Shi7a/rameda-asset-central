@@ -100,7 +100,6 @@ export function AppLayout({
         {/* Brand Header */}
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-border/70 px-5 bg-card">
           <div className="flex items-center gap-3">
-            {/* التعديل الأخير: اللوجو بخلفية بيضاء وبدون فلاتر */}
             <span className="grid size-10 place-items-center rounded-xl border border-[#0d9488]/25 bg-white shadow-sm p-1">
               <img 
                 src={logoAsset} 
@@ -169,7 +168,10 @@ export function AppLayout({
                 <UserCircle className="size-5" />
               </div>
               <div className="min-w-0">
-                <p className="truncate text-xs font-semibold text-foreground">{currentUser?.fullName || "Ahmed Emam"}</p>
+                {/* 🔴 تم حل مشكلة الاسم الثابت هنا 🔴 */}
+                <p className="truncate text-xs font-semibold text-foreground">
+                  {currentUser?.fullName || currentUser?.name || currentUser?.username || "Loading..."}
+                </p>
                 <p className="truncate text-[10px] text-muted-foreground font-medium">
                   {currentUser?.role === "admin" ? "Administrator" : "Standard User"}
                 </p>

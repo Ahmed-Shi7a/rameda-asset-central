@@ -24,7 +24,7 @@ import type {
 } from "./types";
 import { defaultUserPermissions } from "./types";
 
-const STORAGE_KEY = "ams-state-v2";
+const STORAGE_KEY = "rameda-ams-state-v2";
 
 interface AppState {
   assets: Asset[];
@@ -35,14 +35,34 @@ interface AppState {
   isAuthenticated: boolean;
 }
 
+// 🟢 MOCK INITIAL STATE (Smart LocalStorage fallback for seamless session & roles)
 function initialState(): AppState {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<AppState>;
+      const users = Array.isArray(parsed.users) && parsed.users.length ? parsed.users : buildMockUsers();
+      return {
+        assets: Array.isArray(parsed.assets) && parsed.assets.length ? parsed.assets : buildMockAssets(),
+        maintenance: Array.isArray(parsed.maintenance) ? parsed.maintenance : buildMockMaintenance(),
+        users: users,
+        activity: Array.isArray(parsed.activity) ? parsed.activity : buildMockActivity(),
+        currentEmployeeId: typeof parsed.currentEmployeeId === "number" ? parsed.currentEmployeeId : (users[0]?.employeeId ?? 1000),
+        isAuthenticated: parsed.isAuthenticated === true,
+      };
+    }
+  } catch (e) {
+    console.error("Failed to load state from storage:", e);
+  }
+
+  const users = buildMockUsers();
   return {
     assets: buildMockAssets(),
     maintenance: buildMockMaintenance(),
-    users: buildMockUsers(),
+    users: users,
     activity: buildMockActivity(),
-    currentEmployeeId: 1000,
-    isAuthenticated: false,
+    currentEmployeeId: users[0]?.employeeId ?? 1000,
+    isAuthenticated: true,
   };
 }
 
@@ -51,7 +71,7 @@ interface AppContextValue extends AppState {
   isAdmin: boolean;
   hydrated: boolean;
   can: (key: PermissionKey) => boolean;
-  login: (email: string) => boolean;
+  login: (userData: any) => void;
   logout: () => void;
   findUserByEmail: (email: string) => AppUser | undefined;
   addAsset: (asset: Omit<Asset, "id" | "barcode">) => void;
@@ -71,48 +91,57 @@ interface AppContextValue extends AppState {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(() => initialState());
-  const [hydrated, setHydrated] = useState(false);
+  const [state, setState] = useState<AppState>(initialState);
+  const [hydrated] = useState(true);
 
+  // 💾 حفظ الحالة في الـ localStorage لتجنب فقدان السشن أو الحاجة للريفريش المستمر
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Partial<AppState>;
-      setState((prev) => ({
-        assets: Array.isArray(parsed.assets) ? parsed.assets : prev.assets,
-        maintenance: Array.isArray(parsed.maintenance) ? parsed.maintenance : prev.maintenance,
-        users: Array.isArray(parsed.users) && parsed.users.length ? parsed.users : prev.users,
-        activity: Array.isArray(parsed.activity) ? parsed.activity : prev.activity,
-        currentEmployeeId:
-          typeof parsed.currentEmployeeId === "number"
-            ? parsed.currentEmployeeId
-            : prev.currentEmployeeId,
-        isAuthenticated: parsed.isAuthenticated === true,
-      }));
-    } catch {
-      /* ignore corrupt storage */
-    } finally {
-      setHydrated(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      /* storage full or unavailable */
+    } catch (error) {
+      console.error("Failed to save state:", error);
     }
-  }, [state, hydrated]);
+  }, [state]);
+
+  /* ========================================================================= */
+  /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT THIS TO FETCH REAL DATA ON LOAD 🚨🚨🚨 */
+  /* ========================================================================= */
+  /*
+  useEffect(() => {
+    if (!state.isAuthenticated) return;
+    
+    async function fetchRealDatabase() {
+      try {
+        const token = localStorage.getItem("token");
+        const assetsRes = await fetch("https://api.yourdomain.com/api/assets", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const realAssets = await assetsRes.json();
+
+        const maintRes = await fetch("https://api.yourdomain.com/api/maintenance", {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const realMaintenance = await maintRes.json();
+
+        setState(prev => ({
+          ...prev,
+          assets: realAssets,
+          maintenance: realMaintenance
+        }));
+      } catch (error) {
+        console.error("Failed to fetch real data:", error);
+      }
+    }
+    
+    fetchRealDatabase();
+  }, [state.isAuthenticated]);
+  */
+  /* ========================================================================= */
 
   const logActivity = useCallback((message: string) => {
     setState((prev) => ({
       ...prev,
-      activity: [{ id: `act-${Date.now()}`, message, at: "Just now" }, ...prev.activity].slice(
-        0,
-        20,
-      ),
+      activity: [{ id: `act-${Date.now()}`, message, at: "Just now" }, ...prev.activity].slice(0, 20),
     }));
   }, []);
 
@@ -121,6 +150,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       state.users.find((u) => u.employeeId === state.currentEmployeeId) ??
       state.users[0] ??
       buildMockUsers()[0]!;
+    
+    // فحص دور الأدمن بدقة واحترافية
     const isAdmin = currentUser.role === "admin";
 
     return {
@@ -128,23 +159,74 @@ export function AppProvider({ children }: { children: ReactNode }) {
       currentUser,
       isAdmin,
       hydrated,
-      can: (key) => isAdmin || currentUser.permissions?.[key] === true,
+      can: (key) => {
+        if (isAdmin) return true;
+        return currentUser.permissions?.[key] === true;
+      },
       findUserByEmail: (email) =>
         state.users.find((u) => u.email.trim().toLowerCase() === email.trim().toLowerCase()),
-      login: (email) => {
-        const match = state.users.find(
-          (u) => u.email.trim().toLowerCase() === email.trim().toLowerCase(),
-        );
-        if (!match) return false;
-        setState((prev) => ({
-          ...prev,
-          currentEmployeeId: match.employeeId,
-          isAuthenticated: true,
-        }));
-        return true;
+
+      login: (userData: any) => {
+        setState((prev) => {
+          const email = typeof userData === "string" ? userData : userData.email;
+          const foundUser = prev.users.find((u) => u.email.trim().toLowerCase() === email.trim().toLowerCase());
+          
+          let employeeId: number;
+          let updatedUsers = [...prev.users];
+
+          if (foundUser) {
+            employeeId = foundUser.employeeId;
+          } else {
+            // لو يوزر جديد تماماً
+            employeeId = Date.now();
+            const newUser: AppUser = {
+              employeeId,
+              fullName: userData.fullName || email.split("@")[0],
+              email: email,
+              role: userData.role || "user",
+              department: userData.department || "General",
+              jobTitle: userData.jobTitle || "Employee",
+              permissions: userData.permissions || defaultUserPermissions(),
+            };
+            updatedUsers.push(newUser);
+          }
+
+          return {
+            ...prev,
+            users: updatedUsers,
+            currentEmployeeId: employeeId,
+            isAuthenticated: true,
+          };
+        });
       },
-      logout: () => setState((prev) => ({ ...prev, isAuthenticated: false })),
-      addAsset: (asset) => {
+
+      logout: () => {
+        localStorage.removeItem("token");
+        setState((prev) => ({ ...prev, isAuthenticated: false }));
+      },
+
+      addAsset: async (asset) => {
+        /* 🚨🚨🚨 BACKEND TEAM: REAL API 🚨🚨🚨 */
+        /*
+        try {
+          const res = await fetch("https://api.yourdomain.com/api/assets", {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${localStorage.getItem("token")}`
+            },
+            body: JSON.stringify(asset)
+          });
+          const createdAsset = await res.json();
+          setState((prev) => ({ ...prev, assets: [createdAsset, ...prev.assets] }));
+          logActivity(`Asset "${createdAsset.name}" was added`);
+          return;
+        } catch (error) {
+          console.error(error);
+          throw error;
+        }
+        */
+
         setState((prev) => {
           const nextNumber =
             prev.assets.reduce((max, a) => {
@@ -160,17 +242,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
         logActivity(`Asset "${asset.name}" was added`);
       },
-      updateAsset: (asset) => {
+
+      updateAsset: async (asset) => {
+        /* 🚨🚨🚨 BACKEND TEAM: REAL API 🚨🚨🚨 */
+        /*
+        await fetch(`https://api.yourdomain.com/api/assets/${asset.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+          body: JSON.stringify(asset)
+        });
+        */
         setState((prev) => ({
           ...prev,
           assets: prev.assets.map((a) => (a.id === asset.id ? asset : a)),
         }));
         logActivity(`Asset ${asset.id} was updated`);
       },
-      deleteAsset: (id) => {
+
+      deleteAsset: async (id) => {
+        /* 🚨🚨🚨 BACKEND TEAM: REAL API 🚨🚨🚨 */
+        /*
+        await fetch(`https://api.yourdomain.com/api/assets/${id}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+        });
+        */
         setState((prev) => ({ ...prev, assets: prev.assets.filter((a) => a.id !== id) }));
         logActivity(`Asset ${id} was deleted`);
       },
+
       addMaintenance: (record) => {
         setState((prev) => ({
           ...prev,
@@ -181,6 +281,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }));
         logActivity(`Maintenance logged for "${record.assetName}"`);
       },
+
       updateMaintenance: (record) => {
         setState((prev) => ({
           ...prev,
@@ -188,6 +289,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }));
         logActivity(`Maintenance ${record.id} was updated`);
       },
+
       deleteMaintenance: (id) => {
         setState((prev) => ({
           ...prev,
@@ -195,6 +297,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }));
         logActivity(`Maintenance ${id} was deleted`);
       },
+
       addUser: (user) => {
         setState((prev) => ({
           ...prev,
@@ -205,6 +308,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }));
         logActivity(`User "${user.fullName}" was created`);
       },
+
       updateUser: (user) => {
         setState((prev) => ({
           ...prev,
@@ -212,6 +316,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }));
         logActivity(`User "${user.fullName}" was updated`);
       },
+
       setUserPermissions: (employeeId, permissions) => {
         setState((prev) => ({
           ...prev,
@@ -219,6 +324,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }));
         logActivity(`Permissions updated for employee #${employeeId}`);
       },
+
       moveAssetToMaintenance: (asset, description) => {
         setState((prev) => ({
           ...prev,
@@ -237,6 +343,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }));
         logActivity(`Asset ${asset.id} moved to maintenance`);
       },
+
       disposeAsset: (asset, reason) => {
         setState((prev) => ({
           ...prev,
@@ -250,14 +357,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   holderName: "",
                   holderEmployeeId: "",
                   disposalReason: reason,
-                  disposalDate: new Date().toISOString().slice(0, 10),
+                  disposalDate: new Date().toISOString().script ? new Date().toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
                 }
               : a,
           ),
         }));
         logActivity(`Asset ${asset.id} was disposed / scrapped`);
       },
-      resetData: () => setState(initialState()),
+
+      resetData: () => {
+        window.localStorage.removeItem(STORAGE_KEY);
+        setState(initialState());
+      },
     };
   }, [state, hydrated, logActivity]);
 

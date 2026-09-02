@@ -11,7 +11,8 @@ import {
   IdCard, 
   Lock, 
   Save,
-  KeyRound
+  KeyRound,
+  Loader2
 } from "lucide-react";
 
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -42,6 +43,7 @@ export const Route = createFileRoute("/profile")({
 
 function ProfilePage() {
   const { currentUser, updateUser } = useApp() as any;
+  const [isProcessing, setIsProcessing] = useState(false);
   const [form, setForm] = useState({
     fullName: currentUser?.fullName || "",
     email: currentUser?.email || "",
@@ -58,16 +60,69 @@ function ProfilePage() {
       .toUpperCase();
   };
 
-  const handleSave = () => {
+  async function handleSave() {
     if (!form.fullName.trim()) {
       toast.error("Full name is required.");
       return;
     }
-    if (typeof updateUser === "function") {
-      updateUser({ ...currentUser, ...form });
-      toast.success("Profile details updated successfully.");
+    if (!form.email.trim()) {
+      toast.error("Corporate email is required.");
+      return;
     }
-  };
+
+    setIsProcessing(true);
+
+    /* ========================================================================= */
+    /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT THIS BLOCK FOR REAL API INTEGRATION 🚨🚨🚨 */
+    /* ========================================================================= */
+    /*
+    try {
+      // TODO: REPLACE URL WITH REAL PROFILE UPDATE ENDPOINT
+      const response = await fetch(`https://api.yourdomain.com/api/users/${currentUser.employeeId}`, {
+        method: "PUT",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
+        },
+        body: JSON.stringify({
+          fullName: form.fullName.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim()
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update profile.");
+      }
+
+      const updatedUser = await response.json();
+      
+      if (typeof updateUser === "function") {
+        updateUser(updatedUser); // Update local context state
+      }
+
+      toast.success("Profile details updated successfully.");
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred while updating profile.");
+    } finally {
+      setIsProcessing(false);
+    }
+    return; // 🛑 IMPORTANT: RETURN HERE TO PREVENT RUNNING MOCK CODE BELOW 🛑
+    */
+    /* ========================================================================= */
+
+    /* ========================================================================= */
+    /* 🟢🟢🟢 FRONTEND MOCK MODE (REMOVE WHEN BACKEND IS READY) 🟢🟢🟢 */
+    /* ========================================================================= */
+    setTimeout(() => {
+      if (typeof updateUser === "function") {
+        updateUser({ ...currentUser, ...form });
+        toast.success("Profile details updated successfully. (Mock Mode)");
+      }
+      setIsProcessing(false);
+    }, 600);
+  }
 
   return (
     <AppLayout
@@ -80,7 +135,7 @@ function ProfilePage() {
         <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              {/* Avatar */}
+              {/* Avatar (Initials Only) */}
               <div className="relative grid size-16 place-items-center rounded-2xl bg-teal-600 text-white font-bold text-xl shadow-md shadow-teal-600/20 shrink-0">
                 {getInitials(currentUser?.fullName || "Ahmed Emam")}
                 <span className="absolute -bottom-1 -right-1 size-4 rounded-full bg-emerald-500 ring-2 ring-card" />
@@ -175,6 +230,7 @@ function ProfilePage() {
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
                     <Input
                       id="fullName"
+                      disabled={isProcessing}
                       value={form.fullName}
                       onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                       className="pl-9 h-10 bg-muted/20 border-border/80 focus-visible:ring-teal-500 text-xs"
@@ -193,6 +249,7 @@ function ProfilePage() {
                     <Input
                       id="email"
                       type="email"
+                      disabled={isProcessing}
                       value={form.email}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
                       className="pl-9 h-10 bg-muted/20 border-border/80 focus-visible:ring-teal-500 text-xs"
@@ -210,6 +267,7 @@ function ProfilePage() {
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
                     <Input
                       id="phone"
+                      disabled={isProcessing}
                       value={form.phone}
                       onChange={(e) => setForm({ ...form, phone: e.target.value })}
                       className="pl-9 h-10 bg-muted/20 border-border/80 focus-visible:ring-teal-500 text-xs"
@@ -223,9 +281,11 @@ function ProfilePage() {
               <div className="pt-3 flex justify-end">
                 <Button
                   onClick={handleSave}
+                  disabled={isProcessing}
                   className="bg-teal-600 hover:bg-teal-700 text-white font-medium gap-2 shadow-sm shadow-teal-600/20 transition-all hover:scale-[1.01]"
                 >
-                  <Save className="size-4" /> Save Profile Changes
+                  {isProcessing ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                  {isProcessing ? "Saving..." : "Save Profile Changes"}
                 </Button>
               </div>
             </CardContent>
@@ -299,9 +359,10 @@ function ProfilePage() {
                   
                   <div className="space-y-2">
                     {group.items.map((item) => {
+                      // 🔐 الاعتماد الحقيقي والمباشر على الصلاحيات المخزنة للكائن الحالي من غير قيم افتراضية معاندة
                       const granted =
                         currentUser?.role === "admin" ||
-                        (currentUser?.permissions && currentUser.permissions[item.key]);
+                        (currentUser?.permissions && currentUser.permissions[item.key] === true);
 
                       return (
                         <div

@@ -12,7 +12,17 @@ import {
   MapPin, 
   RotateCcw,
   SlidersHorizontal,
-  AlertTriangle
+  AlertTriangle,
+  CalendarDays,
+  ShieldCheck,
+  Cpu,
+  Info,
+  FileText,
+  Monitor,
+  Tablet,
+  Printer,
+  PackageCheck,
+  Loader2
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
@@ -50,6 +60,67 @@ export const Route = createFileRoute("/assets")({
   component: AssetsPage,
 });
 
+const getDeviceIcon = (type?: string) => {
+  switch (type) {
+    case "Desktop":
+    case "Monitor":
+      return Monitor;
+    case "Tablet":
+      return Tablet;
+    case "Printer":
+      return Printer;
+    case "Other":
+      return PackageCheck;
+    case "Laptop":
+    default:
+      return Laptop;
+  }
+};
+
+function getWarrantyStatus(deliveryDate?: string, warrantyString?: string) {
+  if (!deliveryDate || !warrantyString || warrantyString === "No Warranty") {
+    return { label: "No Warranty", style: "bg-slate-100 text-slate-500 border-slate-200" };
+  }
+
+  const yearsMatch = warrantyString.match(/(\d+)/);
+  const years = yearsMatch ? parseInt(yearsMatch[1]) : 0;
+  
+  if (years === 0) return { label: "No Warranty", style: "bg-slate-100 text-slate-500 border-slate-200" };
+
+  const start = new Date(deliveryDate);
+  start.setHours(0, 0, 0, 0);
+  
+  const expiryDate = new Date(start);
+  expiryDate.setFullYear(expiryDate.getFullYear() + years);
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const diffTime = expiryDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return { 
+      label: `Expired ${Math.abs(diffDays)} Days ago`, 
+      style: "bg-rose-50 text-rose-600 border-rose-200 shadow-sm" 
+    };
+  }
+  
+  return { 
+    label: `Expires in ${diffDays} Days`, 
+    style: diffDays <= 30 ? "bg-amber-50 text-amber-600 border-amber-200 shadow-sm" : "bg-teal-50 text-teal-700 border-teal-200 shadow-sm" 
+  };
+}
+
+const DetailItem = ({ label, value, mono = false }: { label: string, value: React.ReactNode, mono?: boolean }) => (
+  <div className="flex flex-col gap-1">
+    <span className="text-[13px] text-muted-foreground">{label}</span>
+    <span className={`text-sm font-medium text-foreground ${mono ? 'font-mono tracking-wide' : ''}`}>
+      {value || "-"}
+    </span>
+  </div>
+);
+
 function AssetsPage() {
   const appContext = useApp() as any;
   const { 
@@ -60,28 +131,50 @@ function AssetsPage() {
     deleteAsset, 
     addMaintenanceRecord, 
     addMaintenanceJob,
-    addMaintenance 
+    addMaintenance,
+    can // 🔐 جلب دالة الصلاحيات من الـ Context
   } = appContext;
 
-  // Add / Edit Modal State
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [isViewOpen, setIsViewOpen] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState<any | null>(null);
 
-  // Scrap Modal State
   const [isScrapOpen, setIsScrapOpen] = useState(false);
   const [scrapTargetAsset, setScrapTargetAsset] = useState<Asset | null>(null);
   const [scrapReason, setScrapReason] = useState("");
 
-  // Filters State
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedLocation, setSelectedLocation] = useState<string>("all");
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const updateSingleAsset = (id: string, updatedFields: Partial<Asset>) => {
+  // =========================================================================
+  // 1. UPDATE ASSET FUNCTION (API + MOCK FALLBACK)
+  // =========================================================================
+  const updateSingleAsset = async (id: string, updatedFields: Partial<Asset>) => {
     const target = assets.find((a: Asset) => a.id === id) || {};
     const mergedAsset = { ...target, ...updatedFields, id };
 
+    /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT FOR REAL API 🚨🚨🚨 */
+    /*
+    try {
+      const response = await fetch(`https://api.yourdomain.com/api/assets/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+        body: JSON.stringify(mergedAsset),
+      });
+      if (!response.ok) throw new Error("Failed to update asset.");
+      
+      const updated = await response.json();
+      if (typeof updateAsset === "function") updateAsset(updated);
+      return;
+    } catch (error) {
+      console.error("API update failed, using local state fallback");
+    }
+    */
+
+    // 🟢 MOCK FALLBACK 🟢
     if (typeof updateAsset === "function") {
       try { updateAsset(id, mergedAsset); } catch (e) {}
       try { updateAsset(mergedAsset); } catch (e) {}
@@ -119,9 +212,18 @@ function AssetsPage() {
     setSelectedLocation("all");
   };
 
-  const handleSendToMaintenance = (asset: Asset) => {
-    updateSingleAsset(asset.id, { status: "Under Maintenance" });
+  // =========================================================================
+  // 2. SEND TO MAINTENANCE FUNCTION (API + MOCK FALLBACK)
+  // =========================================================================
+  const handleSendToMaintenance = async (asset: Asset) => {
+    if (typeof can === "function" && !can("assets.edit")) {
+      toast.error("You do not have permission to modify or send assets to maintenance.");
+      return;
+    }
 
+    setIsProcessing(true);
+    updateSingleAsset(asset.id, { status: "Under Maintenance" });
+    
     const maintenanceData = {
       id: `MNT-${Date.now().toString().slice(-4)}`,
       assetId: asset.id,
@@ -131,43 +233,88 @@ function AssetsPage() {
       date: new Date().toISOString().split("T")[0],
     };
 
+    /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT FOR REAL API 🚨🚨🚨 */
+    /*
+    try {
+      await fetch("https://api.yourdomain.com/api/maintenance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+        body: JSON.stringify(maintenanceData),
+      });
+    } catch (e) {
+      console.error("API maintenance log failed");
+    }
+    */
+
+    // 🟢 MOCK FALLBACK 🟢
     if (typeof addMaintenanceRecord === "function") addMaintenanceRecord(maintenanceData);
     else if (typeof addMaintenanceJob === "function") addMaintenanceJob(maintenanceData);
     else if (typeof addMaintenance === "function") addMaintenance(maintenanceData);
 
+    setIsProcessing(false);
     toast.success(`${asset.name} moved to Maintenance.`);
   };
 
   const handleOpenScrapDialog = (asset: Asset) => {
+    if (typeof can === "function" && !can("assets.edit")) {
+      toast.error("You do not have permission to scrap or decommission assets.");
+      return;
+    }
     setScrapTargetAsset(asset);
     setScrapReason("");
     setIsScrapOpen(true);
   };
 
-  const handleConfirmScrap = () => {
+  // =========================================================================
+  // 3. SCRAP / DECOMMISSION ASSET FUNCTION
+  // =========================================================================
+  const handleConfirmScrap = async () => {
     if (!scrapTargetAsset) return;
     if (!scrapReason.trim()) {
       toast.error("Please enter a reason for scrapping this asset.");
       return;
     }
 
+    setIsProcessing(true);
     const updatedNotes = scrapTargetAsset.notes 
       ? `${scrapTargetAsset.notes} | [Scrapped]: ${scrapReason.trim()}` 
       : `[Scrapped]: ${scrapReason.trim()}`;
 
-    updateSingleAsset(scrapTargetAsset.id, {
+    await updateSingleAsset(scrapTargetAsset.id, {
       status: "Scrapped",
       notes: updatedNotes,
     });
 
+    setIsProcessing(false);
     toast.success(`${scrapTargetAsset.name} marked as Scrapped.`);
     setIsScrapOpen(false);
     setScrapTargetAsset(null);
     setScrapReason("");
   };
 
-  const handleDelete = (asset: Asset) => {
+  // =========================================================================
+  // 4. DELETE ASSET FUNCTION (API + MOCK FALLBACK)
+  // =========================================================================
+  const handleDelete = async (asset: Asset) => {
+    if (typeof can === "function" && !can("assets.delete")) {
+      toast.error("Access Denied: You do not have permission to delete assets.");
+      return;
+    }
+
     if (confirm(`Are you sure you want to delete ${asset.name} (${asset.serialNumber}) permanently?`)) {
+      /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT FOR REAL API 🚨🚨🚨 */
+      /*
+      try {
+        await fetch(`https://api.yourdomain.com/api/assets/${asset.id}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` },
+        });
+      } catch (e) {
+        console.error("API delete failed");
+      }
+      */
+
+      // 🟢 MOCK FALLBACK 🟢
       if (typeof deleteAsset === "function") {
         deleteAsset(asset.id);
         toast.success("Asset deleted permanently.");
@@ -177,9 +324,17 @@ function AssetsPage() {
 
   const handleSaveAsset = (payload: Omit<Asset, "id" | "barcode">) => {
     if (selectedAsset) {
+      if (typeof can === "function" && !can("assets.edit")) {
+        toast.error("You do not have permission to edit assets.");
+        return;
+      }
       updateSingleAsset(selectedAsset.id, payload);
       toast.success("Asset updated successfully.");
     } else {
+      if (typeof can === "function" && !can("assets.add")) {
+        toast.error("You do not have permission to add new assets.");
+        return;
+      }
       if (typeof addAsset === "function") {
         addAsset(payload);
         toast.success("Asset added to inventory.");
@@ -188,6 +343,15 @@ function AssetsPage() {
     setIsAddOpen(false);
     setSelectedAsset(null);
   };
+
+  const warrantyBadge = selectedAsset ? getWarrantyStatus(selectedAsset.deliveryDate, selectedAsset.warranty) : null;
+  const DeviceIcon = getDeviceIcon(selectedAsset?.deviceType);
+  const showEmployeeFields = selectedAsset?.holderName && selectedAsset?.status !== "Stock - New";
+
+  // التحقق من صلاحيات العرض العامة للأزرار
+  const canAdd = typeof can !== "function" || can("assets.add");
+  const canEdit = typeof can !== "function" || can("assets.edit");
+  const canDelete = typeof can !== "function" || can("assets.delete");
 
   return (
     <AppLayout
@@ -198,25 +362,25 @@ function AssetsPage() {
           <span className="hidden sm:inline-flex text-xs font-semibold px-2.5 py-1 rounded-lg bg-muted text-muted-foreground border border-border/60">
             {filteredAssets.length} / {assets.length} Total Devices
           </span>
-          <Button
-            onClick={() => {
-              setSelectedAsset(null);
-              setIsAddOpen(true);
-            }}
-            className="bg-teal-600 hover:bg-teal-700 text-white font-medium gap-1.5 shadow-sm shadow-teal-600/20"
-          >
-            <Plus className="size-4" /> Add Asset
-          </Button>
+          {/* 🔐 زر إضافة جهاز يظهر فقط لو مسموح */}
+          {canAdd && (
+            <Button
+              onClick={() => {
+                setSelectedAsset(null);
+                setIsAddOpen(true);
+              }}
+              className="bg-teal-600 hover:bg-teal-700 text-white font-medium gap-1.5 shadow-sm shadow-teal-600/20"
+            >
+              <Plus className="size-4" /> Add Asset
+            </Button>
+          )}
         </div>
       }
     >
       <div className="space-y-4">
-        
         {/* Filters Bar */}
         <div className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm space-y-3">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-12">
-            
-            {/* Search Input */}
             <div className="relative lg:col-span-4">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               <Input
@@ -227,8 +391,6 @@ function AssetsPage() {
                 className="pl-10 h-10 bg-muted/30 border-border/80 focus-visible:ring-teal-500 text-xs"
               />
             </div>
-
-            {/* Device Type */}
             <div className="lg:col-span-3">
               <Select value={selectedType} onValueChange={setSelectedType}>
                 <SelectTrigger className="h-10 bg-muted/30 border-border/80 text-xs">
@@ -242,8 +404,6 @@ function AssetsPage() {
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Status */}
             <div className="lg:col-span-2">
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                 <SelectTrigger className="h-10 bg-muted/30 border-border/80 text-xs">
@@ -257,8 +417,6 @@ function AssetsPage() {
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Location */}
             <div className="lg:col-span-3">
               <Select value={selectedLocation} onValueChange={setSelectedLocation}>
                 <SelectTrigger className="h-10 bg-muted/30 border-border/80 text-xs">
@@ -273,8 +431,6 @@ function AssetsPage() {
               </Select>
             </div>
           </div>
-
-          {/* Reset Filters */}
           {(searchQuery || selectedType !== "all" || selectedStatus !== "all" || selectedLocation !== "all") && (
             <div className="flex items-center justify-between pt-2 border-t border-border/50 text-xs text-muted-foreground">
               <span>Showing {filteredAssets.length} matching records</span>
@@ -315,134 +471,132 @@ function AssetsPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredAssets.map((asset: Asset) => (
-                    <tr key={asset.id} className="hover:bg-muted/30 transition-colors group">
-                      
-                      {/* Asset ID */}
-                      <td className="p-3.5 font-bold font-mono text-teal-600 dark:text-teal-400">
-                        {asset.id || "AST-1000"}
-                      </td>
-
-                      {/* Asset Name & Model */}
-                      <td className="p-3.5">
-                        <div className="font-semibold text-foreground">{asset.name}</div>
-                        <div className="text-[11px] text-muted-foreground font-normal">
-                          {asset.brand} {asset.model} &bull; <span className="font-mono">{asset.serialNumber}</span>
-                        </div>
-                      </td>
-
-                      {/* Device Type */}
-                      <td className="p-3.5">
-                        <span className="inline-flex items-center gap-1.5 text-foreground font-medium">
-                          <Laptop className="size-3.5 text-muted-foreground" />
-                          {asset.deviceType || "Laptop"}
-                        </span>
-                      </td>
-
-                      {/* Location */}
-                      <td className="p-3.5 text-muted-foreground max-w-[180px] truncate" title={asset.location}>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="size-3 shrink-0 text-muted-foreground/60" />
-                          <span className="truncate">{asset.location}</span>
-                        </span>
-                      </td>
-
-                      {/* Assigned Holder */}
-                      <td className="p-3.5">
-                        {asset.holderName ? (
-                          <div className="flex items-center gap-1.5 font-medium text-foreground">
-                            <User className="size-3 text-teal-600" />
-                            <span>{asset.holderName}</span>
-                            <span className="text-[10px] text-muted-foreground font-mono">
-                              ({asset.holderEmployeeId || "EMP"})
-                            </span>
+                  filteredAssets.map((asset: Asset) => {
+                    const RowIcon = getDeviceIcon(asset.deviceType);
+                    const isUnassigned = asset.status === "Stock - New" || !asset.holderName;
+                    
+                    return (
+                      <tr key={asset.id} className="hover:bg-muted/30 transition-colors group">
+                        <td className="p-3.5 font-bold font-mono text-teal-600 dark:text-teal-400">
+                          {asset.id || "AST-1000"}
+                        </td>
+                        <td className="p-3.5">
+                          <div className="font-semibold text-foreground">{asset.name}</div>
+                          <div className="text-[11px] text-muted-foreground font-normal">
+                            {asset.brand} {asset.model} &bull; <span className="font-mono">{asset.serialNumber}</span>
                           </div>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">
-                            Unassigned
+                        </td>
+                        <td className="p-3.5">
+                          <span className="inline-flex items-center gap-1.5 text-foreground font-medium">
+                            <RowIcon className="size-3.5 text-muted-foreground" />
+                            {asset.deviceType || "Laptop"}
                           </span>
-                        )}
-                      </td>
+                        </td>
+                        <td className="p-3.5 text-muted-foreground max-w-[180px] truncate" title={asset.location}>
+                          <span className="flex items-center gap-1">
+                            <MapPin className="size-3 shrink-0 text-muted-foreground/60" />
+                            <span className="truncate">{asset.location}</span>
+                          </span>
+                        </td>
+                        <td className="p-3.5">
+                          {!isUnassigned ? (
+                            <div className="flex items-center gap-1.5 font-medium text-foreground">
+                              <User className="size-3 text-teal-600" />
+                              <span>{asset.holderName}</span>
+                              <span className="text-[10px] text-muted-foreground font-mono">
+                                ({asset.holderEmployeeId || "EMP"})
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">
+                              Unassigned
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3.5">
+                          <StatusBadge status={asset.status} />
+                        </td>
+                        <td className="p-3.5 text-center">
+                          <div className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/30 p-0.5 shadow-sm">
+                            {/* زر العرض متاح دائماً للجميع */}
+                            <button
+                              type="button"
+                              title="View Asset Details"
+                              onClick={() => {
+                                setSelectedAsset(asset);
+                                setIsViewOpen(true);
+                              }}
+                              className="size-7 rounded-md flex items-center justify-center text-muted-foreground/70 hover:text-sky-600 hover:bg-sky-500/10 transition-colors"
+                            >
+                              <Eye className="size-3.5" />
+                            </button>
+                            
+                            {/* 🔐 زر التعديل مرتبط بصلاحية edit */}
+                            {canEdit && (
+                              <button
+                                type="button"
+                                title="Edit Asset"
+                                onClick={() => {
+                                  setSelectedAsset(asset);
+                                  setIsAddOpen(true);
+                                }}
+                                className="size-7 rounded-md flex items-center justify-center text-muted-foreground/70 hover:text-teal-600 hover:bg-teal-500/10 transition-colors"
+                              >
+                                <Pencil className="size-3.5" />
+                              </button>
+                            )}
 
-                      {/* Status */}
-                      <td className="p-3.5">
-                        <StatusBadge status={asset.status} />
-                      </td>
+                            {/* 🔐 زر الصيانة مرتبط بصلاحية edit */}
+                            {canEdit && (
+                              <button
+                                type="button"
+                                title={asset.status === "Under Maintenance" ? "Already in Maintenance" : "Send to Maintenance"}
+                                disabled={asset.status === "Under Maintenance" || asset.status === "Scrapped" || isProcessing}
+                                onClick={() => handleSendToMaintenance(asset)}
+                                className={`size-7 rounded-md flex items-center justify-center transition-colors ${
+                                  asset.status === "Under Maintenance" || asset.status === "Scrapped"
+                                    ? "text-muted-foreground/20 cursor-not-allowed"
+                                    : "text-muted-foreground/70 hover:text-amber-600 hover:bg-amber-500/10"
+                                }`}
+                              >
+                                <Wrench className="size-3.5" />
+                              </button>
+                            )}
 
-                      {/* Clean & Muted Action Buttons Capsule */}
-                      <td className="p-3.5 text-center">
-                        <div className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/30 p-0.5 shadow-sm">
-                          
-                          {/* 1. View */}
-                          <button
-                            type="button"
-                            title="View Asset Details"
-                            onClick={() => {
-                              setSelectedAsset(asset);
-                              setIsAddOpen(true);
-                            }}
-                            className="size-7 rounded-md flex items-center justify-center text-muted-foreground/70 hover:text-sky-600 hover:bg-sky-500/10 dark:hover:text-sky-400 dark:hover:bg-sky-500/15 transition-colors"
-                          >
-                            <Eye className="size-3.5" />
-                          </button>
-                          
-                          {/* 2. Edit */}
-                          <button
-                            type="button"
-                            title="Edit Asset"
-                            onClick={() => {
-                              setSelectedAsset(asset);
-                              setIsAddOpen(true);
-                            }}
-                            className="size-7 rounded-md flex items-center justify-center text-muted-foreground/70 hover:text-teal-600 hover:bg-teal-500/10 dark:hover:text-teal-400 dark:hover:bg-teal-500/15 transition-colors"
-                          >
-                            <Pencil className="size-3.5" />
-                          </button>
+                            {/* 🔐 زر الخردة مرتبط بصلاحية edit */}
+                            {canEdit && (
+                              <button
+                                type="button"
+                                title={asset.status === "Scrapped" ? "Already Scrapped" : "Scrap Asset (Decommission)"}
+                                disabled={asset.status === "Scrapped" || isProcessing}
+                                onClick={() => handleOpenScrapDialog(asset)}
+                                className={`size-7 rounded-md flex items-center justify-center transition-colors ${
+                                  asset.status === "Scrapped"
+                                    ? "text-muted-foreground/20 cursor-not-allowed"
+                                    : "text-muted-foreground/70 hover:text-purple-600 hover:bg-purple-500/10"
+                                }`}
+                              >
+                                <Ban className="size-3.5" />
+                              </button>
+                            )}
 
-                          {/* 3. Send to Maintenance */}
-                          <button
-                            type="button"
-                            title={asset.status === "Under Maintenance" ? "Already in Maintenance" : "Send to Maintenance"}
-                            disabled={asset.status === "Under Maintenance" || asset.status === "Scrapped"}
-                            onClick={() => handleSendToMaintenance(asset)}
-                            className={`size-7 rounded-md flex items-center justify-center transition-colors ${
-                              asset.status === "Under Maintenance" || asset.status === "Scrapped"
-                                ? "text-muted-foreground/20 cursor-not-allowed"
-                                : "text-muted-foreground/70 hover:text-amber-600 hover:bg-amber-500/10 dark:hover:text-amber-400 dark:hover:bg-amber-500/15"
-                            }`}
-                          >
-                            <Wrench className="size-3.5" />
-                          </button>
-
-                          {/* 4. Scrap Asset */}
-                          <button
-                            type="button"
-                            title={asset.status === "Scrapped" ? "Already Scrapped" : "Scrap Asset (Decommission)"}
-                            disabled={asset.status === "Scrapped"}
-                            onClick={() => handleOpenScrapDialog(asset)}
-                            className={`size-7 rounded-md flex items-center justify-center transition-colors ${
-                              asset.status === "Scrapped"
-                                ? "text-muted-foreground/20 cursor-not-allowed"
-                                : "text-muted-foreground/70 hover:text-purple-600 hover:bg-purple-500/10 dark:hover:text-purple-400 dark:hover:bg-purple-500/15"
-                            }`}
-                          >
-                            <Ban className="size-3.5" />
-                          </button>
-
-                          {/* 5. Delete Permanently */}
-                          <button
-                            type="button"
-                            title="Delete Asset"
-                            onClick={() => handleDelete(asset)}
-                            className="size-7 rounded-md flex items-center justify-center text-muted-foreground/70 hover:text-rose-600 hover:bg-rose-500/10 dark:hover:text-rose-400 dark:hover:bg-rose-500/15 transition-colors"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                            {/* 🔐 زر الحذف مرتبط بصلاحية delete */}
+                            {canDelete && (
+                              <button
+                                type="button"
+                                title="Delete Asset"
+                                disabled={isProcessing}
+                                onClick={() => handleDelete(asset)}
+                                className="size-7 rounded-md flex items-center justify-center text-muted-foreground/70 hover:text-rose-600 hover:bg-rose-500/10 transition-colors"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -450,7 +604,158 @@ function AssetsPage() {
         </div>
       </div>
 
-      {/* Add / Edit Dialog */}
+      {/* View Modal */}
+      <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
+        <DialogContent className="sm:max-w-[650px] p-0 bg-background overflow-hidden shadow-2xl border-border/60">
+          
+          <div className="px-7 py-5 border-b bg-muted/10 flex items-start justify-between">
+            <div className="space-y-1.5 pr-4">
+              <DialogTitle className="text-[1.35rem] font-bold text-foreground flex items-center gap-2.5 leading-none">
+                <DeviceIcon className="size-5 text-teal-600" />
+                {selectedAsset?.name || selectedAsset?.deviceType || "Asset Details"}
+              </DialogTitle>
+              <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+                <span className="font-mono font-semibold text-teal-700 bg-teal-500/10 px-1.5 py-0.5 rounded">
+                  {selectedAsset?.id}
+                </span>
+                <span>•</span>
+                <span>{selectedAsset?.brand || "Generic"} {selectedAsset?.model || ""}</span>
+              </div>
+            </div>
+            
+            {warrantyBadge && (
+              <div className="mr-6 shrink-0 mt-0.5">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold border rounded-full ${warrantyBadge.style}`}>
+                  <ShieldCheck className="size-3.5" />
+                  {warrantyBadge.label}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="px-7 py-6 overflow-y-auto max-h-[65vh] space-y-7">
+            <section>
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground/80 mb-4">
+                <Info className="size-4 text-muted-foreground" /> Identity &amp; Specs
+              </h4>
+              <div className="grid grid-cols-2 gap-y-5 gap-x-6">
+                <DetailItem label="Serial Number" value={selectedAsset?.serialNumber} mono />
+                <DetailItem label="Device Type" value={selectedAsset?.deviceType} />
+              </div>
+            </section>
+
+            <div className="h-px w-full bg-border/60" />
+
+            <section>
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground/80 mb-4">
+                <MapPin className="size-4 text-muted-foreground" /> Status &amp; Assignment
+              </h4>
+              <div className="grid grid-cols-2 gap-y-5 gap-x-6">
+                <div>
+                  <span className="text-[13px] text-muted-foreground block mb-1.5">Current Status</span>
+                  <div><StatusBadge status={selectedAsset?.status as any} /></div>
+                </div>
+                <DetailItem label="Location" value={selectedAsset?.location} />
+                
+                <div className="col-span-2">
+                  <span className="text-[13px] text-muted-foreground block mb-2">Assigned Holder</span>
+                  {showEmployeeFields ? (
+                    <div className="flex items-center gap-2.5">
+                      <div className="bg-teal-500/10 p-1.5 rounded-full">
+                        <User className="size-4 text-teal-600" />
+                      </div>
+                      <span className="text-sm font-semibold text-foreground">{selectedAsset.holderName}</span>
+                      <span className="text-xs font-mono text-muted-foreground">({selectedAsset.holderEmployeeId || "EMP"})</span>
+                    </div>
+                  ) : (
+                    <span className="text-sm font-medium text-muted-foreground">Unassigned</span>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {selectedAsset?.deviceType && selectedAsset.deviceType !== "Other" && (
+              <>
+                <div className="h-px w-full bg-border/60" />
+                <section>
+                  <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground/80 mb-4">
+                    <Cpu className="size-4 text-muted-foreground" /> {selectedAsset.deviceType} Specs
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-5 gap-x-6">
+                    {(selectedAsset.deviceType === "Laptop" || selectedAsset.deviceType === "Desktop") && (
+                      <>
+                        <DetailItem label="Processor (CPU)" value={selectedAsset.processor} />
+                        <DetailItem label="RAM" value={selectedAsset.ram} />
+                        <DetailItem label="Hard Disk Type" value={selectedAsset.hardDiskType} />
+                        <DetailItem label="Storage Capacity" value={selectedAsset.memory || selectedAsset.storage} />
+                        <DetailItem label="Graphic Card (GPU)" value={selectedAsset.gpu} />
+                      </>
+                    )}
+
+                    {selectedAsset.deviceType === "Tablet" && (
+                      <>
+                        <DetailItem label="IMEI Number" value={selectedAsset.imei} mono />
+                        <DetailItem label="Screen Size" value={selectedAsset.screenSize} />
+                        <DetailItem label="RAM" value={selectedAsset.ram} />
+                        <DetailItem label="Storage Capacity" value={selectedAsset.memory || selectedAsset.storage} />
+                      </>
+                    )}
+
+                    {selectedAsset.deviceType === "Printer" && (
+                      <>
+                        <DetailItem label="Printer Type" value={selectedAsset.printerType} />
+                        <DetailItem label="Print Color" value={selectedAsset.printOutput} />
+                        <DetailItem label="Cartridge / Toner" value={selectedAsset.cartridgeModel} />
+                      </>
+                    )}
+
+                    {selectedAsset.deviceType === "Monitor" && (
+                      <>
+                        <DetailItem label="Screen Size" value={selectedAsset.screenSize} />
+                        <DetailItem label="Resolution" value={selectedAsset.resolution} />
+                      </>
+                    )}
+                  </div>
+                </section>
+              </>
+            )}
+
+            <div className="h-px w-full bg-border/60" />
+
+            <section>
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground/80 mb-4">
+                <CalendarDays className="size-4 text-muted-foreground" /> Procurement Details
+              </h4>
+              <div className="grid grid-cols-2 gap-y-5 gap-x-6">
+                <DetailItem label="Supplier" value={selectedAsset?.supplier} />
+                <DetailItem label="Warranty Period" value={selectedAsset?.warranty} />
+                <DetailItem label="Delivery Date" value={selectedAsset?.deliveryDate} />
+              </div>
+            </section>
+
+            {selectedAsset?.notes && (
+              <>
+                <div className="h-px w-full bg-border/60" />
+                <section>
+                  <h4 className="flex items-center gap-2 text-sm font-semibold text-foreground/80 mb-4">
+                    <FileText className="size-4 text-muted-foreground" /> Notes &amp; Description
+                  </h4>
+                  <div className="bg-muted/30 p-4 rounded-xl border border-border/50 text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">
+                    {selectedAsset.notes}
+                  </div>
+                </section>
+              </>
+            )}
+          </div>
+
+          <div className="px-6 py-4 border-t bg-muted/10 flex justify-end shrink-0">
+            <Button variant="outline" onClick={() => setIsViewOpen(false)} className="font-medium bg-background">
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <AddAssetDialog
         open={isAddOpen}
         asset={selectedAsset}
@@ -461,7 +766,6 @@ function AssetsPage() {
         onSubmit={handleSaveAsset}
       />
 
-      {/* Scrap Modal */}
       <Dialog open={isScrapOpen} onOpenChange={setIsScrapOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -491,16 +795,17 @@ function AssetsPage() {
           </div>
 
           <DialogFooter className="gap-2 sm:justify-end">
-            <Button variant="secondary" size="sm" onClick={() => setIsScrapOpen(false)}>
+            <Button variant="secondary" size="sm" onClick={() => setIsScrapOpen(false)} disabled={isProcessing}>
               Cancel
             </Button>
             <Button 
               variant="destructive" 
               size="sm" 
+              disabled={isProcessing}
               onClick={handleConfirmScrap}
               className="bg-rose-600 hover:bg-rose-700 text-white font-medium"
             >
-              Confirm Scrap
+              {isProcessing ? <Loader2 className="size-4 animate-spin" /> : "Confirm Scrap"}
             </Button>
           </DialogFooter>
         </DialogContent>

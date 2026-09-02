@@ -1,13 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
-import { 
-  ArrowRight, 
-  KeyRound, 
-  Mail, 
+import {
+  ArrowRight,
+  KeyRound,
+  Mail,
   ChevronLeft,
   Loader2,
-  Sparkles
+  Sparkles,
 } from "lucide-react";
 
 import brandFan from "@/assets/brand-fan.jpg";
@@ -22,11 +22,15 @@ export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       { title: "Sign In | Rameda Asset Central" },
-      { name: "description", content: "Corporate sign-in for Rameda's IT asset management and barcode system." },
+      {
+        name: "description",
+        content:
+          "Corporate sign-in for Rameda's IT asset management and barcode system.",
+      },
     ],
     links: [
-      { rel: "icon", type: "image/png", href: logoAsset }
-    ]
+      { rel: "icon", type: "image/png", href: logoAsset },
+    ],
   }),
   component: LoginPage,
 });
@@ -47,39 +51,122 @@ function LoginPage() {
 
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  function handleRequestOTP(selectedEmail?: string) {
+  async function handleRequestOTP(selectedEmail?: string) {
     const targetEmail = (selectedEmail || email).trim();
+
     if (!targetEmail) {
       toast.error("Please enter your corporate email.");
       return;
     }
+
     setLoading(true);
-    setTimeout(() => {
+
+    /* ========================================================================= */
+    /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT THIS BLOCK FOR REAL API INTEGRATION 🚨🚨🚨 */
+    /* ========================================================================= */
+    /*
+    try {
+      // TODO: REPLACE URL WITH REAL ENDPOINT
+      const response = await fetch("https://api.yourdomain.com/auth/request-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: targetEmail }),
+      });
+      if (!response.ok) throw new Error("Failed to send OTP.");
+      
       setEmail(targetEmail);
       setStep("otp");
-      setLoading(false);
       toast.success("Authentication code sent!");
-      setTimeout(() => {
-        otpRefs.current[0]?.focus();
-      }, 100);
+      setTimeout(() => otpRefs.current[0]?.focus(), 100);
+    } catch (error: any) {
+      toast.error(error.message || "Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+    return; // 🛑 IMPORTANT: RETURN HERE TO PREVENT RUNNING THE MOCK CODE BELOW 🛑
+    */
+    /* ========================================================================= */
+
+    /* ========================================================================= */
+    /* 🟢🟢🟢 FRONTEND MOCK MODE (REMOVE WHEN BACKEND IS READY) 🟢🟢🟢 */
+    /* ========================================================================= */
+    setTimeout(() => {
+      try {
+        setEmail(targetEmail);
+        setStep("otp");
+        toast.success("Authentication code sent! (Mock Mode)");
+        setTimeout(() => {
+          otpRefs.current[0]?.focus();
+        }, 100);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
     }, 600);
   }
 
-  function handleVerifyOTP(e?: React.FormEvent) {
+  async function handleVerifyOTP(e?: React.FormEvent) {
     if (e) e.preventDefault();
+
     const code = otp.join("");
+
     if (code.length < 6) {
       toast.error("Please enter the 6-digit code.");
       return;
     }
+
     setLoading(true);
-    setTimeout(() => {
+
+    /* ========================================================================= */
+    /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT THIS BLOCK FOR REAL API INTEGRATION 🚨🚨🚨 */
+    /* ========================================================================= */
+    /*
+    try {
+      // TODO: REPLACE URL WITH REAL ENDPOINT
+      const response = await fetch("https://api.yourdomain.com/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email, otp: code }),
+      });
+      if (!response.ok) throw new Error("Invalid OTP code.");
+      
+      const userData = await response.json();
+      
+      // TODO: ENSURE login() CONTEXT ACCEPTS THE RETURNED USER OBJECT OR TOKEN
       if (typeof login === "function") {
-        login(email);
+         login(userData); 
       }
+      
       toast.success("Welcome back!");
       navigate({ to: "/" });
+    } catch (error: any) {
+      toast.error(error.message || "Verification failed. Check your code.");
+      setOtp(["", "", "", "", "", ""]);
+      otpRefs.current[0]?.focus();
+    } finally {
       setLoading(false);
+    }
+    return; // 🛑 IMPORTANT: RETURN HERE TO PREVENT RUNNING THE MOCK CODE BELOW 🛑
+    */
+    /* ========================================================================= */
+
+    /* ========================================================================= */
+    /* 🟢🟢🟢 FRONTEND MOCK MODE (REMOVE WHEN BACKEND IS READY) 🟢🟢🟢 */
+    /* ========================================================================= */
+    setTimeout(() => {
+      try {
+        if (typeof login === "function") {
+          login(email); 
+        }
+        toast.success("Welcome back! (Mock Mode)");
+        navigate({ to: "/" });
+      } catch (error) {
+        console.error(error);
+        toast.error("An error occurred in mock login.");
+      } finally {
+        setLoading(false);
+      }
     }, 400);
   }
 
@@ -87,17 +174,25 @@ function LoginPage() {
     if (value.length > 1) {
       const pastedCode = value.slice(0, 6).split("");
       const newOtp = [...otp];
+
       for (let i = 0; i < pastedCode.length; i++) {
-        if (i < 6) newOtp[i] = pastedCode[i];
+        if (i < 6) {
+          newOtp[i] = pastedCode[i];
+        }
       }
+
       setOtp(newOtp);
+
       const nextFocus = Math.min(pastedCode.length, 5);
       otpRefs.current[nextFocus]?.focus();
+
       return;
     }
+
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
+
     if (value && index < 5) {
       otpRefs.current[index + 1]?.focus();
     }
@@ -113,24 +208,21 @@ function LoginPage() {
 
   return (
     <main className="relative min-h-screen w-full flex overflow-hidden font-sans bg-white selection:bg-[#0d9488]/20 selection:text-[#0d9488]">
-      
-      {/* ================= BACKGROUND ================= */}
+      {/* ====== BACKGROUND ====== */}
       <div className="absolute inset-0 z-0 pointer-events-none">
-        <img 
-          src={brandFan} 
-          alt="" 
-          className="w-full h-full object-cover opacity-100" 
+        <img
+          src={brandFan}
+          alt=""
+          className="w-full h-full object-cover opacity-100"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-white/95 from-30% via-white/70 via-60% to-transparent to-100%" />
       </div>
 
-      {/* ================= LAYOUT ================= */}
+      {/* ====== LAYOUT ====== */}
       <div className="relative z-10 w-full flex flex-col lg:flex-row min-h-screen max-w-[1500px] mx-auto">
-        
-        {/* --- LEFT SECTION --- */}
-        <section className="flex-1 flex flex-col justify-between px-8 py-12 lg:px-20 lg:py-16 h-screen relative z-10">
-          
-          {/* Top Group: Logo */}
+        {/* ====== LEFT SECTION ====== */}
+        <section className="flex-1 flex flex-col px-8 py-12 lg:px-20 lg:py-16 h-screen relative z-10">
+          {/* ====== LOGO ====== */}
           <div className="shrink-0">
             <div className="flex items-center gap-3.5">
               <img
@@ -149,32 +241,30 @@ function LoginPage() {
             </div>
           </div>
 
-          {/* Middle Group: Badge (منتصف تماماً بالمسطرة بين اللوجو والعنوان) */}
-          <div className="my-auto py-2">
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-[#0d9488]/20 bg-white/80 backdrop-blur-sm px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#0f766e] shadow-sm mb-6">
-              <Sparkles className="size-3.5" />
-              Enterprise Workspace
+          {/* ====== HERO AREA ====== */}
+          <div className="flex-1 flex flex-col justify-center">
+            <div className="mb-8">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-[#0d9488]/20 bg-white/80 backdrop-blur-sm px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#0f766e] shadow-sm">
+                <Sparkles className="size-3.5" />
+                Enterprise Workspace
+              </div>
             </div>
 
-            {/* Hero Content */}
-            <div className="w-full max-w-[540px]">
+            <div className="w-full max-w-[560px]">
               <h1 className="text-[2.5rem] lg:text-[52px] font-extrabold tracking-[-0.035em] text-slate-900 leading-[1.02]">
                 Every asset
                 <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0d9488] to-[#2dd4bf]">
-                  One clear view
+                  One clear view.
                 </span>
               </h1>
-
-              <p className="mt-6 text-base lg:text-[17px] text-slate-600 font-medium leading-[1.6] max-w-[440px]">
-                Manage your company's hardware with total clarity. 
-                From instant inventory tracking to intelligent barcode 
-                logistics.
+              <p className="mt-6 text-base lg:text-[17px] text-slate-600 font-medium leading-[1.6] max-w-[470px]">
+                Manage your company's hardware with total clarity. From instant inventory tracking to intelligent barcode logistics.
               </p>
             </div>
           </div>
 
-          {/* Copyright */}
+          {/* ====== COPYRIGHT ====== */}
           <div className="shrink-0">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
               © 2026 RAMEDA Pharmaceuticals
@@ -182,11 +272,9 @@ function LoginPage() {
           </div>
         </section>
 
-        {/* --- RIGHT SECTION: UNTOUCHED LOGIN CARD --- */}
+        {/* ====== RIGHT SECTION ====== */}
         <section className="w-full lg:w-[50%] flex items-center justify-center p-6 lg:p-12 h-screen overflow-y-auto">
-          
           <div className="w-full max-w-[480px] bg-white/70 backdrop-blur-2xl rounded-[2.5rem] p-8 sm:p-12 shadow-[0_24px_60px_-12px_rgba(13,148,136,0.15),inset_0_1px_1px_rgba(255,255,255,0.9)] border border-white/80 relative overflow-hidden">
-            
             {step === "email" ? (
               <div className="animate-in fade-in duration-700 relative z-10">
                 <h2 className="text-[1.75rem] font-bold tracking-tight text-slate-900 mb-2">
@@ -196,9 +284,18 @@ function LoginPage() {
                   Sign in with your Rameda corporate email.
                 </p>
 
-                <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleRequestOTP(); }}>
+                <form
+                  className="space-y-6"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleRequestOTP();
+                  }}
+                >
                   <div className="space-y-2.5">
-                    <Label htmlFor="email" className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">
+                    <Label
+                      htmlFor="email"
+                      className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1"
+                    >
                       Corporate Email
                     </Label>
                     <div className="relative group">
@@ -215,22 +312,28 @@ function LoginPage() {
                     </div>
                   </div>
 
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={loading}
                     className="group h-14 w-full rounded-2xl text-sm font-bold bg-[#0d9488] hover:bg-[#0f766e] text-white shadow-[0_8px_20px_-6px_rgba(13,148,136,0.5)] border-0 transition-all active:scale-[0.98]"
                   >
-                    {loading ? <Loader2 className="size-5 animate-spin" /> : "Request Secure Code"}
-                    {!loading && <ArrowRight className="size-4 ml-2 group-hover:translate-x-1 transition-transform" />}
+                    {loading ? (
+                      <Loader2 className="size-5 animate-spin" />
+                    ) : (
+                      "Request Secure Code"
+                    )}
+                    {!loading && (
+                      <ArrowRight className="size-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                    )}
                   </Button>
                 </form>
 
+                {/* ====== QUICK ACCESS ====== */}
                 <div className="mt-10 pt-8 border-t border-slate-200/50">
                   <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4 ml-1">
                     <KeyRound className="size-3.5 text-[#0d9488]" />
                     Quick Access
                   </div>
-
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {demoAccounts.map((account) => (
                       <button
@@ -251,20 +354,25 @@ function LoginPage() {
                 </div>
               </div>
             ) : (
+              /* ====== OTP ====== */
               <div className="animate-in fade-in slide-in-from-right-8 duration-700 relative z-10">
-                <button 
+                <button
                   onClick={() => setStep("email")}
                   className="mb-8 inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-400 hover:text-slate-800 transition-colors uppercase tracking-widest"
                 >
-                  <ChevronLeft className="size-3.5" /> Back to Email
+                  <ChevronLeft className="size-3.5" />
+                  Back to Email
                 </button>
-                
+
                 <h2 className="text-[1.75rem] font-bold tracking-tight text-slate-900 mb-2">
                   Verify identity
                 </h2>
                 <p className="text-sm text-slate-500 font-medium leading-relaxed mb-10">
-                  We've sent a 6-digit secure code to <br/>
-                  <span className="text-[#0d9488] font-bold inline-block mt-0.5">{email}</span>
+                  We've sent a 6-digit secure code to
+                  <br />
+                  <span className="text-[#0d9488] font-bold inline-block mt-0.5">
+                    {email}
+                  </span>
                 </p>
 
                 <form onSubmit={handleVerifyOTP} className="space-y-8">
@@ -281,7 +389,9 @@ function LoginPage() {
                           maxLength={1}
                           value={digit}
                           ref={(el) => (otpRefs.current[idx] = el)}
-                          onChange={(e) => handleOtpChange(idx, e.target.value.replace(/\D/g, ""))}
+                          onChange={(e) =>
+                            handleOtpChange(idx, e.target.value.replace(/\D/g, ""))
+                          }
                           onKeyDown={(e) => handleOtpKeyDown(idx, e)}
                           className="h-14 w-12 sm:h-16 sm:w-14 text-center text-2xl font-black rounded-2xl bg-white/90 backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] border-white focus:bg-white focus:border-[#0d9488] focus:ring-[3px] focus:ring-[#0d9488]/20 transition-all duration-300"
                         />
@@ -294,12 +404,20 @@ function LoginPage() {
                     disabled={loading || otp.join("").length < 6}
                     className="h-14 w-full rounded-2xl text-sm font-bold bg-[#0d9488] hover:bg-[#0f766e] text-white shadow-[0_8px_20px_-6px_rgba(13,148,136,0.5)] border-0 transition-all active:scale-[0.98]"
                   >
-                    {loading ? <Loader2 className="size-5 animate-spin" /> : "Verify & Sign In"}
+                    {loading ? (
+                      <Loader2 className="size-5 animate-spin" />
+                    ) : (
+                      "Verify & Sign In"
+                    )}
                   </Button>
 
                   <p className="text-center text-xs font-medium text-slate-500 pt-2">
                     Didn't receive it?{" "}
-                    <button type="button" className="font-bold text-[#0d9488] hover:text-[#0f766e] transition-colors hover:underline underline-offset-4">
+                    <button
+                      type="button"
+                      onClick={() => handleRequestOTP()}
+                      className="font-bold text-[#0d9488] hover:text-[#0f766e] transition-colors hover:underline underline-offset-4"
+                    >
                       Resend code
                     </button>
                   </p>

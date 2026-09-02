@@ -12,7 +12,8 @@ import {
   SlidersHorizontal,
   KeyRound,
   Check,
-  RotateCcw
+  RotateCcw,
+  Loader2
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -74,6 +75,7 @@ function UsersPage() {
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   const [originalEmployeeId, setOriginalEmployeeId] = useState<number | null>(null);
   const [deletingUser, setDeletingUser] = useState<AppUser | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const [newUser, setNewUser] = useState({
     employeeId: "",
@@ -113,7 +115,10 @@ function UsersPage() {
     setEditingUser({ ...user });
   }
 
-  function createUser() {
+  // =========================================================================
+  // 1. CREATE USER FUNCTION
+  // =========================================================================
+  async function createUser() {
     const id = Number(newUser.employeeId);
     if (!Number.isInteger(id) || id <= 0) {
       toast.error("Employee ID must be a positive integer.");
@@ -127,21 +132,66 @@ function UsersPage() {
       toast.error("Full name and email are required.");
       return;
     }
-    addUser({
-      employeeId: id,
-      fullName: newUser.fullName.trim(),
-      email: newUser.email.trim(),
-      phone: newUser.phone.trim(),
-      role: "user",
-      status: "Active",
-      permissions: defaultUserPermissions(),
-    });
-    setNewUser({ employeeId: "", fullName: "", email: "", phone: "" });
-    setAddOpen(false);
-    toast.success("User created successfully.");
+
+    setIsProcessing(true);
+
+    /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT THIS BLOCK FOR REAL API 🚨🚨🚨 */
+    /*
+    try {
+      const payload = {
+        employeeId: id,
+        fullName: newUser.fullName.trim(),
+        email: newUser.email.trim(),
+        phone: newUser.phone.trim(),
+        role: "user",
+        status: "Active",
+      };
+      
+      // TODO: REPLACE WITH YOUR REAL ENDPOINT
+      const response = await fetch("https://api.yourdomain.com/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) throw new Error("Failed to create user.");
+      
+      const createdUser = await response.json();
+      addUser(createdUser); // Update frontend context
+      
+      setNewUser({ employeeId: "", fullName: "", email: "", phone: "" });
+      setAddOpen(false);
+      toast.success("User created successfully.");
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred.");
+    } finally {
+      setIsProcessing(false);
+    }
+    return; // 🛑 IMPORTANT: PREVENT MOCK MODE 🛑
+    */
+
+    /* 🟢🟢🟢 FRONTEND MOCK MODE 🟢🟢🟢 */
+    setTimeout(() => {
+      addUser({
+        employeeId: id,
+        fullName: newUser.fullName.trim(),
+        email: newUser.email.trim(),
+        phone: newUser.phone.trim(),
+        role: "user",
+        status: "Active",
+        permissions: defaultUserPermissions(),
+      });
+      setNewUser({ employeeId: "", fullName: "", email: "", phone: "" });
+      setAddOpen(false);
+      setIsProcessing(false);
+      toast.success("User created successfully. (Mock Mode)");
+    }, 600);
   }
 
-  function handleSaveUserEdit() {
+  // =========================================================================
+  // 2. EDIT USER FUNCTION
+  // =========================================================================
+  async function handleSaveUserEdit() {
     if (!editingUser) return;
     const newId = Number(editingUser.employeeId);
     if (!Number.isInteger(newId) || newId <= 0) {
@@ -157,38 +207,153 @@ function UsersPage() {
       return;
     }
 
-    if (originalEmployeeId !== newId && typeof deleteUser === "function") {
-      deleteUser(originalEmployeeId);
-      addUser({
-        ...editingUser,
-        employeeId: newId,
-      });
-    } else {
-      updateUser(editingUser);
-    }
+    setIsProcessing(true);
 
-    toast.success("User profile updated successfully.");
-    setEditingUser(null);
-    setOriginalEmployeeId(null);
+    /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT THIS BLOCK FOR REAL API 🚨🚨🚨 */
+    /*
+    try {
+      // TODO: REPLACE WITH YOUR REAL ENDPOINT
+      const response = await fetch(`https://api.yourdomain.com/api/users/${originalEmployeeId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+        body: JSON.stringify({
+          ...editingUser,
+          employeeId: newId // In case ID was changed
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update user.");
+      
+      const updatedData = await response.json();
+      
+      if (originalEmployeeId !== newId && typeof deleteUser === "function") {
+        deleteUser(originalEmployeeId);
+        addUser(updatedData);
+      } else {
+        updateUser(updatedData);
+      }
+
+      toast.success("User profile updated successfully.");
+      setEditingUser(null);
+      setOriginalEmployeeId(null);
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred updating user.");
+    } finally {
+      setIsProcessing(false);
+    }
+    return; // 🛑 IMPORTANT: PREVENT MOCK MODE 🛑
+    */
+
+    /* 🟢🟢🟢 FRONTEND MOCK MODE 🟢🟢🟢 */
+    setTimeout(() => {
+      if (originalEmployeeId !== newId && typeof deleteUser === "function") {
+        deleteUser(originalEmployeeId);
+        addUser({
+          ...editingUser,
+          employeeId: newId,
+        });
+      } else {
+        updateUser(editingUser);
+      }
+      toast.success("User profile updated successfully. (Mock)");
+      setEditingUser(null);
+      setOriginalEmployeeId(null);
+      setIsProcessing(false);
+    }, 600);
   }
 
-  function handleConfirmDelete() {
+  // =========================================================================
+  // 3. DELETE USER FUNCTION
+  // =========================================================================
+  async function handleConfirmDelete() {
     if (!deletingUser) return;
     if (deletingUser.role === "admin" || (currentUser && currentUser.employeeId === deletingUser.employeeId)) {
       toast.error("You cannot delete the primary Admin account.");
       setDeletingUser(null);
       return;
     }
-    if (typeof deleteUser === "function") {
-      deleteUser(deletingUser.employeeId);
-    } else {
-      updateUser({ ...deletingUser, status: "Inactive" });
+
+    setIsProcessing(true);
+
+    /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT THIS BLOCK FOR REAL API 🚨🚨🚨 */
+    /*
+    try {
+      // TODO: REPLACE WITH YOUR REAL ENDPOINT
+      const response = await fetch(`https://api.yourdomain.com/api/users/${deletingUser.employeeId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` },
+      });
+
+      if (!response.ok) throw new Error("Failed to delete user.");
+      
+      if (typeof deleteUser === "function") {
+        deleteUser(deletingUser.employeeId);
+      } else {
+        updateUser({ ...deletingUser, status: "Inactive" });
+      }
+
+      toast.success(`User ${deletingUser.fullName} removed successfully.`);
+      setDeletingUser(null);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete user.");
+    } finally {
+      setIsProcessing(false);
     }
-    toast.success(`User ${deletingUser.fullName} removed successfully.`);
-    setDeletingUser(null);
+    return; // 🛑 IMPORTANT: PREVENT MOCK MODE 🛑
+    */
+
+    /* 🟢🟢🟢 FRONTEND MOCK MODE 🟢🟢🟢 */
+    setTimeout(() => {
+      if (typeof deleteUser === "function") {
+        deleteUser(deletingUser.employeeId);
+      } else {
+        updateUser({ ...deletingUser, status: "Inactive" });
+      }
+      toast.success(`User ${deletingUser.fullName} removed successfully. (Mock)`);
+      setDeletingUser(null);
+      setIsProcessing(false);
+    }, 500);
   }
 
-  // ميزة تحديد أو إلغاء تحديد مجموعة كاملة
+  // =========================================================================
+  // 4. SAVE PERMISSIONS FUNCTION
+  // =========================================================================
+  async function handleSavePermissions() {
+    if (!selected) return;
+    setIsProcessing(true);
+
+    /* 🚨🚨🚨 BACKEND TEAM: UNCOMMENT THIS BLOCK FOR REAL API 🚨🚨🚨 */
+    /*
+    try {
+      // TODO: REPLACE WITH YOUR REAL ENDPOINT
+      const response = await fetch(`https://api.yourdomain.com/api/users/${selected.employeeId}/permissions`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${localStorage.getItem("token")}` },
+        body: JSON.stringify({ permissions: draftPerms }),
+      });
+
+      if (!response.ok) throw new Error("Failed to update permissions.");
+      
+      setUserPermissions(selected.employeeId, draftPerms);
+      toast.success("Permissions updated successfully.");
+      setSelected(null);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update permissions.");
+    } finally {
+      setIsProcessing(false);
+    }
+    return; // 🛑 IMPORTANT: PREVENT MOCK MODE 🛑
+    */
+
+    /* 🟢🟢🟢 FRONTEND MOCK MODE 🟢🟢🟢 */
+    setTimeout(() => {
+      setUserPermissions(selected.employeeId, draftPerms);
+      toast.success("Permissions updated successfully. (Mock)");
+      setSelected(null);
+      setIsProcessing(false);
+    }, 600);
+  }
+
   function toggleGroupPermissions(groupItems: { key: PermissionKey }[]) {
     const allChecked = groupItems.every((item) => draftPerms[item.key] === true);
     setDraftPerms((prev) => {
@@ -320,7 +485,7 @@ function UsersPage() {
                         )}
                       </td>
 
-                      {/* Calm Action Buttons */}
+                      {/* Action Buttons */}
                       <td className="p-3.5 text-center">
                         <div className="inline-flex items-center gap-0.5 rounded-lg border border-border/60 bg-muted/30 p-0.5 shadow-sm">
                           {isAdmin && (
@@ -410,15 +575,16 @@ function UsersPage() {
           </div>
 
           <DialogFooter className="gap-2 sm:justify-end pt-3 border-t border-border/60">
-            <Button variant="secondary" size="sm" onClick={() => setAddOpen(false)}>
+            <Button variant="secondary" size="sm" onClick={() => setAddOpen(false)} disabled={isProcessing}>
               Cancel
             </Button>
             <Button 
               onClick={createUser}
               size="sm"
+              disabled={isProcessing}
               className="bg-teal-600 hover:bg-teal-700 text-white font-medium shadow-sm"
             >
-              Create User
+              {isProcessing ? <Loader2 className="size-4 animate-spin" /> : "Create User"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -491,15 +657,16 @@ function UsersPage() {
           )}
 
           <DialogFooter className="gap-2 sm:justify-end pt-3 border-t border-border/60">
-            <Button variant="secondary" size="sm" onClick={() => setEditingUser(null)}>
+            <Button variant="secondary" size="sm" onClick={() => setEditingUser(null)} disabled={isProcessing}>
               Cancel
             </Button>
             <Button 
               onClick={handleSaveUserEdit}
               size="sm"
+              disabled={isProcessing}
               className="bg-teal-600 hover:bg-teal-700 text-white font-medium shadow-sm"
             >
-              Save Changes
+              {isProcessing ? <Loader2 className="size-4 animate-spin" /> : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -517,26 +684,26 @@ function UsersPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:justify-end pt-3 border-t border-border/60">
-            <Button variant="secondary" size="sm" onClick={() => setDeletingUser(null)}>
+            <Button variant="secondary" size="sm" onClick={() => setDeletingUser(null)} disabled={isProcessing}>
               Cancel
             </Button>
             <Button 
               variant="destructive" 
               size="sm"
+              disabled={isProcessing}
               onClick={handleConfirmDelete}
               className="bg-rose-600 hover:bg-rose-700 text-white font-medium"
             >
-              Confirm Delete
+              {isProcessing ? <Loader2 className="size-4 animate-spin" /> : "Confirm Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modern Refactored Permissions Checklist Modal */}
+      {/* Permissions Checklist Modal */}
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="sm:max-w-4xl max-h-[92vh] flex flex-col p-6 border-border/80 shadow-2xl">
           
-          {/* Modal Header */}
           <DialogHeader className="pb-3 border-b border-border/60 shrink-0">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -556,7 +723,6 @@ function UsersPage() {
             </div>
           </DialogHeader>
 
-          {/* Checklist Content Grid */}
           {selected && (
             <div className="py-4 overflow-y-auto pr-1 space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -571,7 +737,6 @@ function UsersPage() {
                       key={group.group}
                       className="rounded-2xl border border-border/80 bg-card p-4 shadow-sm transition-all hover:border-teal-500/30 flex flex-col justify-between"
                     >
-                      {/* Card Header with Group Name & Batch Toggle */}
                       <div className="flex items-center justify-between pb-3 mb-3 border-b border-border/60">
                         <div>
                           <p className="text-xs font-bold uppercase tracking-wider text-foreground">
@@ -582,7 +747,6 @@ function UsersPage() {
                           </span>
                         </div>
 
-                        {/* Quick Toggle All Button */}
                         {selected.role !== "admin" && isAdmin && (
                           <button
                             type="button"
@@ -594,7 +758,6 @@ function UsersPage() {
                         )}
                       </div>
 
-                      {/* Permission Items */}
                       <div className="space-y-2">
                         {group.items.map((item) => {
                           const isChecked = selected.role === "admin" ? true : draftPerms[item.key] === true;
@@ -621,7 +784,6 @@ function UsersPage() {
                                 <span className="truncate">{item.label}</span>
                               </div>
 
-                              {/* Badges */}
                               {isRestricted ? (
                                 <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded-md shrink-0">
                                   Restricted
@@ -642,22 +804,17 @@ function UsersPage() {
             </div>
           )}
 
-          {/* Modal Footer */}
           <DialogFooter className="pt-3 border-t border-border/60 flex items-center justify-between sm:justify-end gap-2 shrink-0">
-            <Button variant="secondary" size="sm" onClick={() => setSelected(null)}>
+            <Button variant="secondary" size="sm" onClick={() => setSelected(null)} disabled={isProcessing}>
               Cancel
             </Button>
             <Button
               size="sm"
-              disabled={selected?.role === "admin" || !isAdmin}
-              onClick={() => {
-                if (selected) setUserPermissions(selected.employeeId, draftPerms);
-                setSelected(null);
-                toast.success("Permissions updated successfully.");
-              }}
+              disabled={selected?.role === "admin" || !isAdmin || isProcessing}
+              onClick={handleSavePermissions}
               className="bg-teal-600 hover:bg-teal-700 text-white font-medium shadow-sm"
             >
-              Save Permissions
+              {isProcessing ? <Loader2 className="size-4 animate-spin" /> : "Save Permissions"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -12,6 +12,7 @@ import { type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { AppProvider } from "../lib/app-context";
 import { Toaster } from "../components/ui/sonner";
+import logoAsset from "@/assets/rameda-logo.png"; // تم استدعاء اللوجو هنا
 
 function NotFoundComponent() {
   return (
@@ -94,8 +95,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       {
         rel: "icon",
-        type: "image/svg+xml",
-        href: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='%2310b981'><path d='M15 15H42V42H15V15Z'/><path d='M58 15H85V42H58V15Z'/><path d='M15 58H42V85H15V58Z'/><path d='M58 58H85V85H58V58Z'/></svg>",
+        type: "image/png",
+        href: logoAsset, // تم ربط أيقونة الموقع بصورة الشركة
       },
     ],
   }),
