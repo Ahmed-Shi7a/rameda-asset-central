@@ -33,7 +33,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { ASSET_STATUSES, LOCATIONS, type Asset, type AssetStatus } from "@/lib/types";
 
-// بطاقات الأجهزة المعتمدة مع هوية بصرية مخصصة لكل نوع
 export const APP_DEVICE_TYPES = [
   { 
     id: "Laptop", 
@@ -115,7 +114,6 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
   const [manufacturingDate, setManufacturingDate] = useState("");
   const [warranty, setWarranty] = useState("1 Year");
 
-  // Specs States
   const [processor, setProcessor] = useState("");
   const [ram, setRam] = useState("");
   const [hardDiskType, setHardDiskType] = useState("SSD");
@@ -205,65 +203,27 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
   };
 
   const handleSubmit = () => {
-    const reqFields = [
-      { label: "Asset Name", val: name },
-      { label: "Location", val: location },
-      { label: "Supplier", val: supplier },
-      { label: "Delivery Date", val: deliveryDate },
-      { label: "Manufacturing Date", val: manufacturingDate },
-    ];
-
-    if (selectedType !== "Other") {
-      reqFields.push({ label: "Serial Number", val: serialNumber });
-      reqFields.push({ label: "Brand", val: brand });
-      reqFields.push({ label: "Model", val: model });
-    } else {
-      reqFields.push({ label: "Item Description & Notes", val: notes });
+    if (!name || !name.trim()) {
+      toast.error("Please fill the required field: Asset Name");
+      return;
     }
 
-    if (showEmployeeFields) {
-      reqFields.push({ label: "Assigned Employee Name", val: holderName });
-      reqFields.push({ label: "Assigned Employee ID", val: holderEmployeeId });
-    }
-
-    if (selectedType === "Laptop" || selectedType === "Desktop") {
-      reqFields.push(
-        { label: "Processor", val: processor },
-        { label: "RAM", val: ram },
-        { label: "Storage Capacity", val: memory },
-        { label: "Graphic Card (GPU)", val: gpu }
-      );
-    } else if (selectedType === "Tablet") {
-      reqFields.push(
-        { label: "IMEI Number", val: imei },
-        { label: "Screen Size", val: screenSize },
-        { label: "RAM", val: ram },
-        { label: "Storage Capacity", val: memory }
-      );
-    } else if (selectedType === "Printer") {
-      reqFields.push({ label: "Cartridge / Toner Model", val: cartridgeModel });
-    } else if (selectedType === "Monitor") {
-      reqFields.push({ label: "Screen Size", val: screenSize });
-    }
-
-    for (const field of reqFields) {
-      if (!field.val || !String(field.val).trim()) {
-        toast.error(`Please fill the required field: ${field.label}`);
-        return; 
-      }
+    if (selectedType !== "Other" && (!serialNumber || !serialNumber.trim())) {
+      toast.error("Please fill the required field: Serial Number");
+      return;
     }
 
     const payload: Omit<Asset, "id" | "barcode"> = {
       name,
       deviceType: selectedType,
-      brand,
-      model,
+      brand: brand || "Generic",
+      model: model || "Standard",
       serialNumber: selectedType === "Other" ? serialNumber || "N/A" : serialNumber,
       status,
       location,
       holderName,
       holderEmployeeId,
-      supplier,
+      supplier: supplier || "N/A",
       deliveryDate,
       manufacturingDate,
       warranty,
@@ -298,7 +258,6 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
           </DialogDescription>
         </DialogHeader>
 
-        {/* الخطوة 1: بطاقات الأجهزة التفاعلية الملونة */}
         {step === 1 && (
           <div className="py-3">
             <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3">
@@ -349,11 +308,9 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
           </div>
         )}
 
-        {/* الخطوة 2: نماذج إدخال البيانات المكتملة */}
         {step === 2 && (
           <div className="space-y-4 pt-1">
             
-            {/* بطاقة الاستيراد السريع */}
             {!asset && (
               <div className="flex items-center justify-between rounded-xl border border-teal-500/30 bg-teal-500/10 p-4 mb-2">
                 <div>
@@ -385,10 +342,10 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                   <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Wireless Ergonomic Mouse" />
                 </Field>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Brand / Manufacturer *">
+                  <Field label="Brand / Manufacturer">
                     <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Logitech, Anker" />
                   </Field>
-                  <Field label="Location *">
+                  <Field label="Location">
                     <Select value={location} onValueChange={setLocation}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -399,7 +356,7 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                     </Select>
                   </Field>
                 </div>
-                <Field label="Item Description & Notes *">
+                <Field label="Item Description & Notes">
                   <Textarea
                     rows={4}
                     placeholder="Enter specs or details..."
@@ -421,13 +378,13 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                     <Field label="Serial Number *">
                       <Input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} placeholder="e.g. SN-981240" />
                     </Field>
-                    <Field label="Brand *">
+                    <Field label="Brand">
                       <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="e.g. Dell, HP, Apple" />
                     </Field>
-                    <Field label="Model *">
+                    <Field label="Model">
                       <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. Latitude 5420, M-102" />
                     </Field>
-                    <Field label="Status *">
+                    <Field label="Status">
                       <Select value={status} onValueChange={(v) => setStatus(v as AssetStatus)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -437,7 +394,7 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="Location *">
+                    <Field label="Location">
                       <Select value={location} onValueChange={setLocation}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -457,13 +414,13 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
 
                   {(selectedType === "Laptop" || selectedType === "Desktop") && (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Processor (CPU) *">
+                      <Field label="Processor (CPU)">
                         <Input value={processor} onChange={(e) => setProcessor(e.target.value)} placeholder="e.g. Intel Core i7-12700H" />
                       </Field>
-                      <Field label="RAM (GB) *">
+                      <Field label="RAM (GB)">
                         <Input value={ram} onChange={(e) => setRam(e.target.value)} placeholder="e.g. 16 GB" />
                       </Field>
-                      <Field label="Hard Disk Type *">
+                      <Field label="Hard Disk Type">
                         <Select value={hardDiskType} onValueChange={setHardDiskType}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -472,10 +429,10 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                           </SelectContent>
                         </Select>
                       </Field>
-                      <Field label="Storage Capacity *">
+                      <Field label="Storage Capacity">
                         <Input value={memory} onChange={(e) => setMemory(e.target.value)} placeholder="e.g. 512 GB" />
                       </Field>
-                      <Field label="Graphic Card (GPU) *">
+                      <Field label="Graphic Card (GPU)">
                         <Input value={gpu} onChange={(e) => setGpu(e.target.value)} placeholder="e.g. RTX 3050 / Iris Xe" />
                       </Field>
                     </div>
@@ -483,16 +440,16 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
 
                   {selectedType === "Tablet" && (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="IMEI Number *">
+                      <Field label="IMEI Number">
                         <Input value={imei} onChange={(e) => setImei(e.target.value)} placeholder="e.g. 354890123456789" />
                       </Field>
-                      <Field label="Screen Size (Inches) *">
+                      <Field label="Screen Size (Inches)">
                         <Input value={screenSize} onChange={(e) => setScreenSize(e.target.value)} placeholder="e.g. 10.9-inch" />
                       </Field>
-                      <Field label="RAM *">
+                      <Field label="RAM">
                         <Input value={ram} onChange={(e) => setRam(e.target.value)} placeholder="e.g. 8 GB" />
                       </Field>
-                      <Field label="Storage Capacity *">
+                      <Field label="Storage Capacity">
                         <Input value={memory} onChange={(e) => setMemory(e.target.value)} placeholder="e.g. 128 GB" />
                       </Field>
                     </div>
@@ -500,7 +457,7 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
 
                   {selectedType === "Printer" && (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Printer Type *">
+                      <Field label="Printer Type">
                         <Select value={printerType} onValueChange={setPrinterType}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -511,7 +468,7 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                           </SelectContent>
                         </Select>
                       </Field>
-                      <Field label="Print Color *">
+                      <Field label="Print Color">
                         <Select value={printOutput} onValueChange={setPrintOutput}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -520,7 +477,7 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                           </SelectContent>
                         </Select>
                       </Field>
-                      <Field label="Cartridge / Toner Model *">
+                      <Field label="Cartridge / Toner Model">
                         <Input value={cartridgeModel} onChange={(e) => setCartridgeModel(e.target.value)} placeholder="e.g. HP 26A / CF226A" />
                       </Field>
                     </div>
@@ -528,10 +485,10 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
 
                   {selectedType === "Monitor" && (
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Screen Size (Inches) *">
+                      <Field label="Screen Size (Inches)">
                         <Input value={screenSize} onChange={(e) => setScreenSize(e.target.value)} placeholder="e.g. 27-inch" />
                       </Field>
-                      <Field label="Resolution *">
+                      <Field label="Resolution">
                         <Select value={resolution} onValueChange={setResolution}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -553,19 +510,19 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                     
                     {showEmployeeFields && (
                       <>
-                        <Field label="Assigned Employee Name *">
+                        <Field label="Assigned Employee Name">
                           <Input value={holderName} onChange={(e) => setHolderName(e.target.value)} placeholder="e.g. Ahmed Emam" />
                         </Field>
-                        <Field label="Assigned Employee ID *">
+                        <Field label="Assigned Employee ID">
                           <Input value={holderEmployeeId} onChange={(e) => setHolderEmployeeId(e.target.value)} placeholder="e.g. EMP-102" />
                         </Field>
                       </>
                     )}
 
-                    <Field label="Supplier *">
+                    <Field label="Supplier">
                       <Input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="e.g. Raya, B.TECH" />
                     </Field>
-                    <Field label="Warranty Period *">
+                    <Field label="Warranty Period">
                       <Select value={warranty} onValueChange={setWarranty}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -575,10 +532,10 @@ export function AddAssetDialog({ open, asset, onOpenChange, onSubmit }: AddAsset
                         </SelectContent>
                       </Select>
                     </Field>
-                    <Field label="Delivery Date *">
+                    <Field label="Delivery Date">
                       <Input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} />
                     </Field>
-                    <Field label="Manufacturing Date *">
+                    <Field label="Manufacturing Date">
                       <Input type="date" value={manufacturingDate} onChange={(e) => setManufacturingDate(e.target.value)} />
                     </Field>
                   </div>

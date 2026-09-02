@@ -6,7 +6,6 @@ import {
   LogOut,
   Menu,
   MonitorSmartphone,
-  ShieldCheck,
   UploadCloud,
   UserCircle,
   Users,
@@ -14,6 +13,9 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+
+// استدعاء اللوجو الحقيقي من المجلد
+import logoAsset from "@/assets/rameda-logo.png";
 
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/app-context";
@@ -98,17 +100,22 @@ export function AppLayout({
         {/* Brand Header */}
         <div className="flex h-16 shrink-0 items-center justify-between border-b border-border/70 px-5 bg-card">
           <div className="flex items-center gap-3">
-            <span className="grid size-9 place-items-center rounded-xl bg-teal-600 text-white shadow-sm shadow-teal-600/25">
-              <ShieldCheck className="size-5" />
+            {/* التعديل الأخير: اللوجو بخلفية بيضاء وبدون فلاتر */}
+            <span className="grid size-10 place-items-center rounded-xl border border-[#0d9488]/25 bg-white shadow-sm p-1">
+              <img 
+                src={logoAsset} 
+                alt="RAMEDA Logo" 
+                className="w-full h-full object-contain" 
+              />
             </span>
             <div className="leading-tight">
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold tracking-normal text-foreground">RAMEDA</span>
-                <span className="rounded bg-teal-500/15 px-1.5 py-0.5 text-[9px] font-bold text-teal-600 dark:text-teal-400">
+                <span className="text-sm font-bold tracking-normal text-slate-900">RAMEDA</span>
+                <span className="rounded bg-[#0d9488]/15 px-1.5 py-0.5 text-[9px] font-bold text-[#0d9488]">
                   Central
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground font-medium">Asset Management</p>
+              <p className="text-[11px] text-slate-500 font-medium">Asset Management</p>
             </div>
           </div>
           <button
@@ -139,11 +146,11 @@ export function AppLayout({
                       onClick={() => setOpen(false)}
                       activeOptions={{ exact: to === "/" }}
                       activeProps={{
-                        className: "bg-teal-500/10 text-teal-600 dark:text-teal-400 font-bold [&>span.indicator]:opacity-100",
+                        className: "bg-[#0d9488]/10 text-[#0d9488] font-bold [&>span.indicator]:opacity-100",
                       }}
-                      className="group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-semibold text-muted-foreground transition-all hover:bg-muted/70 hover:text-foreground"
+                      className="group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-semibold text-muted-foreground transition-all hover:bg-muted/70 hover:text-slate-900"
                     >
-                      <span className="indicator absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-teal-600 opacity-0 transition-opacity" />
+                      <span className="indicator absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-[#0d9488] opacity-0 transition-opacity" />
                       <Icon className="size-4 shrink-0 transition-transform group-hover:scale-105" />
                       <span className="truncate">{label}</span>
                     </Link>
@@ -158,7 +165,7 @@ export function AppLayout({
         <div className="border-t border-border/70 p-3 bg-card shrink-0">
           <div className="flex items-center justify-between rounded-xl bg-muted/40 p-2.5 border border-border/60">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="grid size-8 place-items-center rounded-lg bg-teal-500/10 text-teal-600 dark:text-teal-400">
+              <div className="grid size-8 place-items-center rounded-lg bg-[#0d9488]/10 text-[#0d9488]">
                 <UserCircle className="size-5" />
               </div>
               <div className="min-w-0">

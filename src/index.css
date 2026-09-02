@@ -81,3 +81,37 @@
     background: rgba(150, 150, 150, 0.45);
   }
 }
+/* ألوان وتأثيرات صفحة تسجيل الدخول */
+:root {
+  --brand: oklch(0.62 0.11 183);
+  --brand-soft: oklch(0.86 0.06 187);
+  --brand-deep: oklch(0.34 0.06 195);
+  
+  --gradient-brand: linear-gradient(135deg, var(--brand-deep), var(--brand) 55%, var(--brand-soft));
+  --gradient-panel: radial-gradient(
+      110% 80% at 8% 88%,
+      color-mix(in oklab, var(--brand) 26%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(150deg, #ffffff, #f4f7f8 60%, #eef2f3);
+}
+
+.panel-brand {
+  background: var(--gradient-panel);
+}
+
+.btn-brand {
+  background: var(--gradient-brand) !important;
+  color: white !important;
+  border: none;
+  box-shadow: 0 14px 32px -14px color-mix(in oklab, var(--brand) 55%, transparent);
+  transition: filter 200ms ease, transform 200ms ease;
+}
+
+.btn-brand:hover {
+  filter: brightness(1.1);
+}
+
+.btn-brand:active {
+  transform: translateY(1px);
+}

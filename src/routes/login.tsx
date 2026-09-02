@@ -1,63 +1,50 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { 
-  Mail, 
-  ShieldCheck, 
-  ArrowRight, 
-  Sparkles, 
-  KeyRound,
-  Boxes,
-  Lock,
-  Printer,
-  ChevronLeft
-} from "lucide-react";
 import { useState, useRef } from "react";
 import { toast } from "sonner";
+import { 
+  ArrowRight, 
+  KeyRound, 
+  Mail, 
+  ChevronLeft,
+  Loader2,
+  Sparkles
+} from "lucide-react";
+
+import brandFan from "@/assets/brand-fan.jpg";
+import logoAsset from "@/assets/rameda-logo.png";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useApp } from "@/lib/app-context";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
-    meta: [{ title: "Sign In — RAMEDA Asset Central" }],
+    meta: [
+      { title: "Sign In | Rameda Asset Central" },
+      { name: "description", content: "Corporate sign-in for Rameda's IT asset management and barcode system." },
+    ],
+    links: [
+      { rel: "icon", type: "image/png", href: logoAsset }
+    ]
   }),
   component: LoginPage,
 });
 
-// أيقونة تكنولوجية مذهلة (Tech Core / System Node) بديلة للوجو
-function SystemIcon({ className = "size-8" }: { className?: string }) {
-  return (
-    <svg 
-      viewBox="0 0 64 64" 
-      fill="none" 
-      xmlns="http://www.w3.org/2000/svg" 
-      className={className}
-    >
-      {/* Outer Tech Frame */}
-      <rect x="12" y="12" width="40" height="40" rx="10" stroke="currentColor" strokeWidth="2.5" className="text-teal-500/40" />
-      {/* Inner Core Border */}
-      <rect x="22" y="22" width="20" height="20" rx="6" stroke="currentColor" strokeWidth="4" className="text-teal-400" />
-      {/* Center Energy Dot */}
-      <circle cx="32" cy="32" r="4" fill="currentColor" className="text-teal-300" />
-      {/* Connection Nodes */}
-      <path d="M32 12 V22 M32 42 V52 M12 32 H22 M42 32 H52" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-teal-300" />
-      {/* Corner Accents */}
-      <path d="M12 24 V12 H24 M40 12 H52 V24 M52 40 V52 H40 M24 52 H12 V40" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-teal-500/60" />
-    </svg>
-  );
-}
+const demoAccounts = [
+  { role: "Administrator", email: "ahmed.emam@company.com" },
+  { role: "Standard User", email: "sara.adel@company.com" },
+];
 
 function LoginPage() {
   const { login } = useApp() as any;
   const navigate = useNavigate();
-  
+
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<"email" | "otp">("email");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  
+
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   function handleRequestOTP(selectedEmail?: string) {
@@ -125,230 +112,203 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col lg:flex-row bg-background antialiased selection:bg-teal-500/20 font-sans">
-      {/* Left Branding Side */}
-      <div className="relative flex flex-1 flex-col justify-between overflow-hidden bg-gradient-to-b from-[#080E14] via-[#0D1822] to-[#070D12] p-8 lg:p-14 text-white border-r border-slate-800/60">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b12_1px,transparent_1px),linear-gradient(to_bottom,#1e293b12_1px,transparent_1px)] bg-[size:32px_32px]" />
-        <div className="absolute -left-24 -top-24 size-[420px] rounded-full bg-teal-500/10 blur-[100px] pointer-events-none" />
-        <div className="absolute -right-24 bottom-12 size-96 rounded-full bg-emerald-500/10 blur-[100px] pointer-events-none" />
-
-        {/* Brand Header */}
-        <div className="relative z-10 flex items-center gap-4">
-          <div className="flex size-14 items-center justify-center rounded-2xl bg-teal-500/10 border border-teal-500/30 text-teal-400 shadow-lg shadow-teal-500/10 p-2.5 backdrop-blur-md">
-            <SystemIcon className="size-9 text-teal-400" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[26px] font-bold tracking-tight text-white leading-none lowercase">rameda</span>
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-teal-400 mt-1.5 opacity-90">
-              Asset Central
-            </span>
-          </div>
-        </div>
-
-        {/* Center Content Section */}
-        <div className="relative z-10 max-w-xl my-auto py-10">
-          <div className="inline-flex items-center gap-2 rounded-full border border-teal-500/25 bg-teal-500/10 px-3.5 py-1 text-xs font-medium text-teal-300 mb-6 backdrop-blur-sm">
-            <Sparkles className="size-3.5 text-teal-400" />
-            <span>IT Asset Management &amp; Barcode System</span>
-          </div>
-
-          <h1 className="text-3xl sm:text-4xl lg:text-[40px] font-bold tracking-tight text-white leading-[1.2]">
-            Smart Infrastructure &amp; Asset Tracking
-          </h1>
-
-          <p className="mt-4 text-sm sm:text-base text-slate-400 leading-relaxed max-w-lg">
-            A unified management console for monitoring company hardware, maintenance cycles, and regional branch assets.
-          </p>
-
-          <div className="mt-8 space-y-3">
-            <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-colors hover:bg-white/[0.05]">
-              <div className="p-2 rounded-lg bg-teal-500/10 text-teal-400 shrink-0">
-                <Boxes className="size-4" />
-              </div>
-              <div className="text-xs">
-                <p className="font-semibold text-slate-200 text-sm">Real-Time Inventory &amp; Stock</p>
-                <p className="text-slate-400 mt-0.5">Live visibility over HQ and all regional scientific offices.</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-colors hover:bg-white/[0.05]">
-              <div className="p-2 rounded-lg bg-teal-500/10 text-teal-400 shrink-0">
-                <Lock className="size-4" />
-              </div>
-              <div className="text-xs">
-                <p className="font-semibold text-slate-200 text-sm">Granular Role-Based Access</p>
-                <p className="text-slate-400 mt-0.5">Role security with custom feature permissions per employee.</p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-colors hover:bg-white/[0.05]">
-              <div className="p-2 rounded-lg bg-teal-500/10 text-teal-400 shrink-0">
-                <Printer className="size-4" />
-              </div>
-              <div className="text-xs">
-                <p className="font-semibold text-slate-200 text-sm">Standard Barcode Generation</p>
-                <p className="text-slate-400 mt-0.5">Direct thermal printing support for hardware labeling.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="relative z-10 flex items-center justify-between border-t border-slate-800/80 pt-6 text-xs text-slate-500">
-          <p>© 2026 RAMEDA Pharmaceuticals. All rights reserved.</p>
-          <div className="flex items-center gap-1.5 text-slate-400 font-medium">
-            <ShieldCheck className="size-4 text-teal-400" />
-            <span>Enterprise Security</span>
-          </div>
-        </div>
+    <main className="relative min-h-screen w-full flex overflow-hidden font-sans bg-white selection:bg-[#0d9488]/20 selection:text-[#0d9488]">
+      
+      {/* ================= BACKGROUND ================= */}
+      <div className="absolute inset-0 z-0 pointer-events-none">
+        <img 
+          src={brandFan} 
+          alt="" 
+          className="w-full h-full object-cover opacity-100" 
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-white/95 from-30% via-white/70 via-60% to-transparent to-100%" />
       </div>
 
-      {/* Right Form Side */}
-      <div className="flex flex-1 items-center justify-center p-6 sm:p-12 lg:p-16 bg-slate-50/50 dark:bg-card">
-        <div className="w-full max-w-[380px]">
+      {/* ================= LAYOUT ================= */}
+      <div className="relative z-10 w-full flex flex-col lg:flex-row min-h-screen max-w-[1500px] mx-auto">
+        
+        {/* --- LEFT SECTION --- */}
+        <section className="flex-1 flex flex-col justify-between px-8 py-12 lg:px-20 lg:py-16 h-screen relative z-10">
           
-          {step === "email" ? (
-            // ================== STEP 1: EMAIL ENTRY ==================
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-7">
-              <div className="space-y-2 text-left">
-                <h2 className="text-3xl font-bold tracking-tight text-foreground">Sign In</h2>
-                <p className="text-[15px] text-muted-foreground">
-                  Enter your corporate email address to access your workspace.
-                </p>
+          {/* Top Group: Logo */}
+          <div className="shrink-0">
+            <div className="flex items-center gap-3.5">
+              <img
+                src={logoAsset}
+                alt="RAMEDA"
+                className="h-11 w-auto object-contain drop-shadow-sm"
+              />
+              <div className="flex flex-col justify-center">
+                <span className="text-xl font-bold tracking-tight text-slate-900 uppercase leading-none">
+                  rameda
+                </span>
+                <span className="text-[10px] font-bold tracking-[0.2em] text-[#0d9488] uppercase mt-1">
+                  Asset Central
+                </span>
               </div>
-
-              <form onSubmit={(e) => { e.preventDefault(); handleRequestOTP(); }} className="space-y-5">
-                <div className="space-y-2.5">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                    Corporate Email
-                  </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4.5 text-muted-foreground" />
-                    <Input
-                      type="email"
-                      placeholder="name@rameda.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="h-12 pl-11 bg-background text-[15px] shadow-sm focus-visible:ring-teal-500 rounded-xl transition-all"
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full h-12 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold shadow-md shadow-teal-600/20 text-[15px] gap-2 transition-all"
-                >
-                  {loading ? "Verifying..." : "Send Code"}
-                  {!loading && <ArrowRight className="size-4" />}
-                </Button>
-              </form>
-
-              {/* Quick Access Card */}
-              <Card className="border-border/70 bg-card shadow-sm rounded-xl">
-                <CardContent className="p-4 space-y-3.5">
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
-                    <span className="flex items-center gap-1.5 tracking-wider uppercase">
-                      <KeyRound className="size-3.5 text-teal-500" /> Quick Access (Demo)
-                    </span>
-                    <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">Auto-fills OTP</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <button
-                      type="button"
-                      onClick={() => handleRequestOTP("ahmed.emam@company.com")}
-                      className="flex flex-col items-start p-3 rounded-lg border border-border/80 bg-background hover:border-teal-500/50 hover:bg-teal-50/30 dark:hover:bg-teal-950/20 transition-all text-left group"
-                    >
-                      <span className="text-xs font-bold text-foreground group-hover:text-teal-600 transition-colors">
-                        Administrator
-                      </span>
-                      <span className="text-[11px] text-muted-foreground truncate w-full mt-1">
-                        ahmed.emam@company.com
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleRequestOTP("sara.adel@company.com")}
-                      className="flex flex-col items-start p-3 rounded-lg border border-border/80 bg-background hover:border-teal-500/50 hover:bg-teal-50/30 dark:hover:bg-teal-950/20 transition-all text-left group"
-                    >
-                      <span className="text-xs font-bold text-foreground group-hover:text-teal-600 transition-colors">
-                        Standard User
-                      </span>
-                      <span className="text-[11px] text-muted-foreground truncate w-full mt-1">
-                        sara.adel@company.com
-                      </span>
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
-          ) : (
-            // ================== STEP 2: OTP ENTRY ==================
-            <div className="animate-in fade-in slide-in-from-right-8 duration-500 space-y-8">
-              {/* Back Button */}
-              <div>
-                <button 
-                  onClick={() => setStep("email")}
-                  className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-muted-foreground hover:text-foreground transition-colors bg-muted/40 hover:bg-muted px-3 py-1.5 rounded-lg border border-border/50"
-                >
-                  <ChevronLeft className="size-4" /> Back to email
-                </button>
-              </div>
+          </div>
 
-              {/* Title & Email */}
-              <div className="space-y-3 text-left">
-                <h2 className="text-3xl font-bold tracking-tight text-foreground">Verify identity</h2>
-                <p className="text-[15px] text-muted-foreground leading-relaxed">
-                  We've sent a 6-digit secure code to <br/>
-                  <span className="text-foreground font-semibold inline-block mt-1">{email}</span>
+          {/* Middle Group: Badge (منتصف تماماً بالمسطرة بين اللوجو والعنوان) */}
+          <div className="my-auto py-2">
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-[#0d9488]/20 bg-white/80 backdrop-blur-sm px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#0f766e] shadow-sm mb-6">
+              <Sparkles className="size-3.5" />
+              Enterprise Workspace
+            </div>
+
+            {/* Hero Content */}
+            <div className="w-full max-w-[540px]">
+              <h1 className="text-[2.5rem] lg:text-[52px] font-extrabold tracking-[-0.035em] text-slate-900 leading-[1.02]">
+                Every asset
+                <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#0d9488] to-[#2dd4bf]">
+                  One clear view
+                </span>
+              </h1>
+
+              <p className="mt-6 text-base lg:text-[17px] text-slate-600 font-medium leading-[1.6] max-w-[440px]">
+                Manage your company's hardware with total clarity. 
+                From instant inventory tracking to intelligent barcode 
+                logistics.
+              </p>
+            </div>
+          </div>
+
+          {/* Copyright */}
+          <div className="shrink-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              © 2026 RAMEDA Pharmaceuticals
+            </p>
+          </div>
+        </section>
+
+        {/* --- RIGHT SECTION: UNTOUCHED LOGIN CARD --- */}
+        <section className="w-full lg:w-[50%] flex items-center justify-center p-6 lg:p-12 h-screen overflow-y-auto">
+          
+          <div className="w-full max-w-[480px] bg-white/70 backdrop-blur-2xl rounded-[2.5rem] p-8 sm:p-12 shadow-[0_24px_60px_-12px_rgba(13,148,136,0.15),inset_0_1px_1px_rgba(255,255,255,0.9)] border border-white/80 relative overflow-hidden">
+            
+            {step === "email" ? (
+              <div className="animate-in fade-in duration-700 relative z-10">
+                <h2 className="text-[1.75rem] font-bold tracking-tight text-slate-900 mb-2">
+                  Welcome back
+                </h2>
+                <p className="text-sm text-slate-500 font-medium mb-8">
+                  Sign in with your Rameda corporate email.
                 </p>
-              </div>
 
-              <form onSubmit={handleVerifyOTP} className="space-y-7">
-                <div className="space-y-3">
-                  <Label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Authentication Code
-                  </Label>
-                  <div className="flex items-center justify-between gap-2">
-                    {otp.map((digit, idx) => (
+                <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleRequestOTP(); }}>
+                  <div className="space-y-2.5">
+                    <Label htmlFor="email" className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">
+                      Corporate Email
+                    </Label>
+                    <div className="relative group">
+                      <Mail className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-slate-400 group-focus-within:text-[#0d9488] transition-colors" />
                       <Input
-                        key={idx}
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={1}
-                        value={digit}
-                        ref={(el) => (otpRefs.current[idx] = el)}
-                        onChange={(e) => handleOtpChange(idx, e.target.value.replace(/\D/g, ""))}
-                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                        className="h-12 w-12 sm:h-14 sm:w-14 text-center text-xl font-bold rounded-xl border-border/80 shadow-sm focus-visible:ring-teal-500 focus-visible:border-teal-500 bg-background transition-all"
+                        id="email"
+                        type="email"
+                        autoComplete="email"
+                        placeholder="name@rameda.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="h-14 rounded-2xl bg-white/90 backdrop-blur-sm border-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] focus:bg-white focus:ring-[3px] focus:ring-[#0d9488]/20 focus:border-[#0d9488] font-semibold pl-12 text-slate-900 transition-all duration-300"
                       />
+                    </div>
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    disabled={loading}
+                    className="group h-14 w-full rounded-2xl text-sm font-bold bg-[#0d9488] hover:bg-[#0f766e] text-white shadow-[0_8px_20px_-6px_rgba(13,148,136,0.5)] border-0 transition-all active:scale-[0.98]"
+                  >
+                    {loading ? <Loader2 className="size-5 animate-spin" /> : "Request Secure Code"}
+                    {!loading && <ArrowRight className="size-4 ml-2 group-hover:translate-x-1 transition-transform" />}
+                  </Button>
+                </form>
+
+                <div className="mt-10 pt-8 border-t border-slate-200/50">
+                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4 ml-1">
+                    <KeyRound className="size-3.5 text-[#0d9488]" />
+                    Quick Access
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {demoAccounts.map((account) => (
+                      <button
+                        key={account.email}
+                        type="button"
+                        onClick={() => handleRequestOTP(account.email)}
+                        className="group flex flex-col text-left rounded-2xl bg-white/60 backdrop-blur-sm border border-white p-4 hover:bg-white hover:shadow-[0_4px_12px_rgba(13,148,136,0.08)] transition-all duration-300"
+                      >
+                        <span className="block text-xs font-bold text-slate-800 group-hover:text-[#0d9488] transition-colors">
+                          {account.role}
+                        </span>
+                        <span className="block w-full truncate text-[10px] text-slate-500 font-medium mt-1">
+                          {account.email}
+                        </span>
+                      </button>
                     ))}
                   </div>
                 </div>
-
-                <Button
-                  type="submit"
-                  disabled={loading || otp.join("").length < 6}
-                  className="w-full h-12 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold shadow-md shadow-teal-600/20 text-[15px] transition-all"
+              </div>
+            ) : (
+              <div className="animate-in fade-in slide-in-from-right-8 duration-700 relative z-10">
+                <button 
+                  onClick={() => setStep("email")}
+                  className="mb-8 inline-flex items-center gap-1.5 text-[10px] font-bold text-slate-400 hover:text-slate-800 transition-colors uppercase tracking-widest"
                 >
-                  {loading ? "Authenticating..." : "Verify & Sign In"}
-                </Button>
+                  <ChevronLeft className="size-3.5" /> Back to Email
+                </button>
+                
+                <h2 className="text-[1.75rem] font-bold tracking-tight text-slate-900 mb-2">
+                  Verify identity
+                </h2>
+                <p className="text-sm text-slate-500 font-medium leading-relaxed mb-10">
+                  We've sent a 6-digit secure code to <br/>
+                  <span className="text-[#0d9488] font-bold inline-block mt-0.5">{email}</span>
+                </p>
 
-                <div className="text-center mt-6">
-                  <p className="text-[13px] font-medium text-muted-foreground">
-                    Didn't receive a code?{" "}
-                    <button type="button" className="font-bold text-teal-600 hover:text-teal-700 transition-colors ml-1">
-                      Click to resend
+                <form onSubmit={handleVerifyOTP} className="space-y-8">
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1">
+                      Authentication Code
+                    </Label>
+                    <div className="flex items-center justify-between gap-2">
+                      {otp.map((digit, idx) => (
+                        <Input
+                          key={idx}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          ref={(el) => (otpRefs.current[idx] = el)}
+                          onChange={(e) => handleOtpChange(idx, e.target.value.replace(/\D/g, ""))}
+                          onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                          className="h-14 w-12 sm:h-16 sm:w-14 text-center text-2xl font-black rounded-2xl bg-white/90 backdrop-blur-sm shadow-[inset_0_2px_4px_rgba(0,0,0,0.02)] border-white focus:bg-white focus:border-[#0d9488] focus:ring-[3px] focus:ring-[#0d9488]/20 transition-all duration-300"
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={loading || otp.join("").length < 6}
+                    className="h-14 w-full rounded-2xl text-sm font-bold bg-[#0d9488] hover:bg-[#0f766e] text-white shadow-[0_8px_20px_-6px_rgba(13,148,136,0.5)] border-0 transition-all active:scale-[0.98]"
+                  >
+                    {loading ? <Loader2 className="size-5 animate-spin" /> : "Verify & Sign In"}
+                  </Button>
+
+                  <p className="text-center text-xs font-medium text-slate-500 pt-2">
+                    Didn't receive it?{" "}
+                    <button type="button" className="font-bold text-[#0d9488] hover:text-[#0f766e] transition-colors hover:underline underline-offset-4">
+                      Resend code
                     </button>
                   </p>
-                </div>
-              </form>
-            </div>
-          )}
-        </div>
+                </form>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
